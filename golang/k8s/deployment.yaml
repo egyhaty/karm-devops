@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: golang
+  labels:
+    app: golang
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: golang
+  template:
+    metadata:
+      labels:
+        app: golang
+    spec:
+      serviceAccountName: private
+      containers:
+      - name: golang
+        image: egyhaty/dockerhub:golang
+        ports:
+        - containerPort: 80

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: golang
+spec:
+  serviceAccountName: private
+  containers:
+    - name: golang
+      image: docker.io/egyhaty/dockerhub:golang
+      ports:
+      - containerPort: 8080
+
