@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devops-task
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/EmaLinuxawy/karm-devops.git
+    targetRevision: main
+    path: argocd
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: my-app
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
