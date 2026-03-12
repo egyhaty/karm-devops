@@ -16,7 +16,7 @@ spec:
     spec:
       serviceAccountName: private
       containers:
-      - name: golang
-        image: egyhaty/dockerhub:nodejs
+      - name: nodejs
+        image: egyhaty/dockerhub:node
         ports:
-        - containerPort: 80
+        - containerPort: 3000
