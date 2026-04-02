@@ -1,0 +1,7 @@
+replicaCount: 3
+image:
+  repository: egyhaty/dockerhub
+  tag: node
+containerPort: 3000
+serviceAccountName: private
+fullnameOverride: nodejs

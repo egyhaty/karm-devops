@@ -16,7 +16,8 @@ spec:
     spec:
       serviceAccountName: private
       containers:
-      - name: golang
-        image: egyhaty/dockerhub:golang
-        ports:
-        - containerPort: 8080
+        - name: golang
+          image: egyhaty/dockerhub:golang
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080

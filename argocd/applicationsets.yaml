@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: services-applicationset
+  namespace: argocd
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/EmaLinuxawy/karm-devops.git
+        revision: main
+        directories:
+          - path: golang
+          - path: nodejs
+  template:
+    metadata:
+      # Each Application gets the folder name as its name (golang or nodejs)
+      name: '{{path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/EmaLinuxawy/karm-devops.git
+        targetRevision: main
+        # Point to the common Helm chart
+        path: charts/common-app
+        helm:
+          # Pull values from the specific app folder discovered by the generator
+          valueFiles:
+            - '../../{{path}}/values.yaml'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

@@ -16,7 +16,8 @@ spec:
     spec:
       serviceAccountName: private
       containers:
-      - name: nodejs
-        image: egyhaty/dockerhub:node
-        ports:
-        - containerPort: 3000
+        - name: nodejs
+          image: egyhaty/dockerhub:node
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
