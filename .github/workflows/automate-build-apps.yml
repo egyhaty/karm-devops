@@ -44,15 +44,20 @@ jobs:
           push: true
           tags: ${{ env.username }}/golang:${{ steps.meta.outputs.SHORT_SHA }}
 
-      - uses: actions-hub/kubectl@master
+      
 
-      - name: Configure kubeconfig
+      - name: nodejs deployment
         uses: actions-hub/kubectl@master
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         with:
           args: \
-            apply -f .nodejs/k8s/deployment.yaml
-            apply -f .nodejs/k8s/service.yaml
-            apply -f .golang/k8s/deployment.yaml
-            apply -f .golang/k8s/service.yaml
+            apply -f .nodejs/k8s/
+      - name: golang deployment
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        with:
+          args: \
+            apply -f .golang/k8s/     
+      
