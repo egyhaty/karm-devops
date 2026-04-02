@@ -33,7 +33,7 @@ jobs:
         with:
           context: ./nodejs
           file: ./nodejs/Dockerfile
-          tags: ${{ env.DOCKER_USER }}/nodejs:${{ steps.meta.outputs.SHORT_SHA }}
+          tags: ${{ env.username }}/nodejs:${{ steps.meta.outputs.SHORT_SHA }}
           push: true
 
       - name: Build & push Go image
@@ -42,7 +42,7 @@ jobs:
           context: ./golang
           file: ./golang/Dockerfile
           push: true
-          tags: ${{ env.DOCKER_USER }}/golang:${{ steps.meta.outputs.SHORT_SHA }}
+          tags: ${{ env.username }}/golang:${{ steps.meta.outputs.SHORT_SHA }}
 
       - uses: actions-hub/kubectl@master
 
