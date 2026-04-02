@@ -51,7 +51,7 @@ jobs:
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         with:
-          args: |
+          args: \
             apply -f .nodejs/k8s/deployment.yaml
             apply -f .nodejs/k8s/service.yaml
             apply -f .golang/k8s/deployment.yaml
