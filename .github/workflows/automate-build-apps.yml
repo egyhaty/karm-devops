@@ -46,6 +46,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: CI
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
       - name: Render k8s manifest with SHORT_SHA
         env:
           SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
