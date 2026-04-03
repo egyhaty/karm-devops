@@ -47,9 +47,8 @@ jobs:
         env:
           SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
         run: |
-          envsubst < golang/k8s/deployment.yaml > golang/k8s/deployment-rendered.yaml
-          envsubst < nodejs/k8s/deployment.yaml > nodejs/k8s/deployment-rendered.yaml
-          cat nodejs/k8s/deployment.yaml
+          sed -i "s/SHORT_SHA/${SHORT_SHA}/g" golang/k8s/deployment.yaml
+          sed -i "s/SHORT_SHA/${SHORT_SHA}/g" nodejs/k8s/deployment.yaml
 
       - name: nodejs deployment
         uses: actions-hub/kubectl@master
