@@ -44,13 +44,17 @@ jobs:
           push: true
           tags: ${{ env.username }}/golang:${{ steps.meta.outputs.SHORT_SHA }}
 
-      
+      - name: Render k8s manifest with SHORT_SHA
+        env:
+          SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
+        run: |
+          envsubst < golang/k8s/deployment.yaml > golang/k8s/deployment.yaml
+          envsubst < nodejs/k8s/deployment.yaml > nodejs/k8s/deployment.yaml
 
       - name: nodejs deployment
         uses: actions-hub/kubectl@master
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-          SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
         with:
           args: |
             apply -f ./nodejs/k8s/
@@ -59,7 +63,6 @@ jobs:
         uses: actions-hub/kubectl@master
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-          SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
         with:
           args: |
             apply -f ./golang/k8s/
