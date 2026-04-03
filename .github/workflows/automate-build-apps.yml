@@ -11,6 +11,8 @@ env:
 jobs:
   CI:
     runs-on: ubuntu-latest
+    outputs:
+      SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
     steps:
       - name: Checkout source code
         uses: actions/checkout@v6
@@ -51,7 +53,7 @@ jobs:
 
       - name: Render k8s manifest with SHORT_SHA
         env:
-          SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
+          SHORT_SHA: ${{ needs.CI.outputs.SHORT_SHA }}
         run: |
           sed -i "s/SHORT_SHA/${SHORT_SHA}/g" golang/k8s/deployment.yaml
           sed -i "s/SHORT_SHA/${SHORT_SHA}/g" nodejs/k8s/deployment.yaml
