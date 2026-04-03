@@ -9,9 +9,8 @@ env:
   KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
 
 jobs:
-  Check:
+  CI:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v6
@@ -27,7 +26,7 @@ jobs:
           username: ${{ secrets.USERNAME}}
           password: ${{ secrets.PASSWORD  }}
 
-      - name: Build Docker image
+      - name: Build NodeJS
         uses: docker/build-push-action@v7
         with:
           context: ./nodejs
@@ -35,14 +34,18 @@ jobs:
           tags: ${{ env.username }}/nodejs:${{ steps.meta.outputs.SHORT_SHA }}
           push: true
 
-      - name: Build & push Go image
-        uses: docker/build-push-action@v6
+      - name: Build GoLang
+        uses: docker/build-push-action@v7
         with:
           context: ./golang
           file: ./golang/Dockerfile
           push: true
           tags: ${{ env.username }}/golang:${{ steps.meta.outputs.SHORT_SHA }}
 
+  CD:
+    runs-on: ubuntu-latest
+    needs: CI
+    steps:
       - name: Render k8s manifest with SHORT_SHA
         env:
           SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}

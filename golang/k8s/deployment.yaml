@@ -17,7 +17,7 @@ spec:
       serviceAccountName: private
       containers:
         - name: golang
-          image: egyhaty/golangs:SHORT_SHA
+          image: egyhaty/golang:SHORT_SHA
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
