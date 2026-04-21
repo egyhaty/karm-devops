@@ -89,8 +89,10 @@ jobs:
           echo "SHORT_SHA=${SHORT_SHA}"
           echo "NODEJS_IMAGE=${{ env.DOCKERHUB_USERNAME }}/nodejs:sha-${SHORT_SHA}" >> "$GITHUB_ENV"
           echo "GOLANG_IMAGE=${{ env.DOCKERHUB_USERNAME }}/golang:sha-${SHORT_SHA}" >> "$GITHUB_ENV"
+
+      - name: Show deploy image names
+        shell: bash
         run: |
-          echo "SHORT_SHA=$SHORT_SHA"
           echo "NODEJS_IMAGE=$NODEJS_IMAGE"
           echo "GOLANG_IMAGE=$GOLANG_IMAGE"
 
@@ -123,6 +125,4 @@ jobs:
       - name: Apply GoLang manifests
         uses: actions-hub/kubectl@v1.34.1
         env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-        with:
-          args: apply -f ./golang/k8s/
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFI
