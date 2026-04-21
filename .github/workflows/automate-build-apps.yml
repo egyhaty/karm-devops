@@ -2,75 +2,126 @@ name: Automate_build_apps
 
 on:
   push:
+    branches:
+      - main
 
 env:
-  username: ${{ secrets.USERNAME }}
-  password: ${{ secrets.PASSWORD }}
-  KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+  DOCKERHUB_USERNAME: ${{ secrets.USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.PASSWORD }}
 
 jobs:
   CI:
     runs-on: ubuntu-latest
     outputs:
-      SHORT_SHA: ${{ steps.meta.outputs.SHORT_SHA }}
+      NODEJS_IMAGE: ${{ steps.deploy_tags.outputs.NODEJS_IMAGE }}
+      GOLANG_IMAGE: ${{ steps.deploy_tags.outputs.GOLANG_IMAGE }}
+
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
 
-      - name: Extract metadata
-        id: meta
+      - name: Prepare exact deploy image tags
+        id: deploy_tags
+        shell: bash
         run: |
-          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "NODEJS_IMAGE=${DOCKERHUB_USERNAME}/nodejs:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "GOLANG_IMAGE=${DOCKERHUB_USERNAME}/golang:sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Show deploy tags
+        run: |
+          echo "NodeJS image: ${{ steps.deploy_tags.outputs.NODEJS_IMAGE }}"
+          echo "GoLang image: ${{ steps.deploy_tags.outputs.GOLANG_IMAGE }}"
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.USERNAME}}
-          password: ${{ secrets.PASSWORD  }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
 
-      - name: Build NodeJS
-        uses: docker/build-push-action@v7
+      - name: Docker metadata for NodeJS
+        id: meta_nodejs
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/nodejs
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+
+      - name: Build and push NodeJS image
+        uses: docker/build-push-action@v6
         with:
           context: ./nodejs
           file: ./nodejs/Dockerfile
-          tags: ${{ env.username }}/nodejs:${{ steps.meta.outputs.SHORT_SHA }}
           push: true
+          tags: ${{ steps.meta_nodejs.outputs.tags }}
+          labels: ${{ steps.meta_nodejs.outputs.labels }}
 
-      - name: Build GoLang
-        uses: docker/build-push-action@v7
+      - name: Docker metadata for GoLang
+        id: meta_golang
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/golang
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=tag
+
+      - name: Build and push GoLang image
+        uses: docker/build-push-action@v6
         with:
           context: ./golang
           file: ./golang/Dockerfile
           push: true
-          tags: ${{ env.username }}/golang:${{ steps.meta.outputs.SHORT_SHA }}
+          tags: ${{ steps.meta_golang.outputs.tags }}
+          labels: ${{ steps.meta_golang.outputs.labels }}
 
   CD:
     runs-on: ubuntu-latest
     needs: CI
+
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v5
 
-      - name: Render k8s manifest with SHORT_SHA
-        env:
-          SHORT_SHA: ${{ needs.CI.outputs.SHORT_SHA }}
+      - name: Show job outputs
         run: |
-          sed -i "s/SHORT_SHA/${SHORT_SHA}/g" golang/k8s/deployment.yaml
-          sed -i "s/SHORT_SHA/${SHORT_SHA}/g" nodejs/k8s/deployment.yaml
+          echo "NodeJS image from CI: ${{ needs.CI.outputs.NODEJS_IMAGE }}"
+          echo "GoLang image from CI: ${{ needs.CI.outputs.GOLANG_IMAGE }}"
 
-      - name: nodejs deployment
-        uses: actions-hub/kubectl@master
+      - name: Replace image placeholders in manifests
+        shell: bash
+        env:
+          NODEJS_IMAGE: ${{ needs.CI.outputs.NODEJS_IMAGE }}
+          GOLANG_IMAGE: ${{ needs.CI.outputs.GOLANG_IMAGE }}
+        run: |
+          sed -i "s|NODEJS_IMAGE|${NODEJS_IMAGE}|g" nodejs/k8s/deployment.yaml
+          sed -i "s|GOLANG_IMAGE|${GOLANG_IMAGE}|g" golang/k8s/deployment.yaml
+
+      - name: Verify rendered manifests
+        shell: bash
+        run: |
+          echo "===== nodejs deployment ====="
+          cat nodejs/k8s/deployment.yaml
+          echo "===== golang deployment ====="
+          cat golang/k8s/deployment.yaml
+
+          if grep -R "NODEJS_IMAGE\|GOLANG_IMAGE" nodejs/k8s golang/k8s; then
+            echo "Placeholder replacement failed"
+            exit 1
+          fi
+
+      - name: Apply NodeJS manifests
+        uses: actions-hub/kubectl@v1.34.1
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         with:
-          args: |
-            apply -f ./nodejs/k8s/
+          args: apply -f ./nodejs/k8s/
 
-      - name: golang deployment
-        uses: actions-hub/kubectl@master
+      - name: Apply GoLang manifests
+        uses: actions-hub/kubectl@v1.34.1
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         with:
-          args: |
-            apply -f ./golang/k8s/
-      
+          args: apply -f ./golang/k8s/
