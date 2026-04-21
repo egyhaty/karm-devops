@@ -26,13 +26,6 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Show SHA
-        shell: bash
-        env:
-          SHORT_SHA: ${{ steps.vars.outputs.SHORT_SHA }}
-        run: |
-          echo "SHORT_SHA=${SHORT_SHA}"
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -57,6 +50,8 @@ jobs:
           push: true
           tags: ${{ steps.meta_nodejs.outputs.tags }}
           labels: ${{ steps.meta_nodejs.outputs.labels }}
+          cache-from: type=gha,scope=nodejs
+          cache-to: type=gha,mode=max,scope=nodejs
 
       - name: Docker metadata for GoLang
         id: meta_golang
@@ -76,6 +71,8 @@ jobs:
           push: true
           tags: ${{ steps.meta_golang.outputs.tags }}
           labels: ${{ steps.meta_golang.outputs.labels }}
+          cache-from: type=gha,scope=golang
+          cache-to: type=gha,mode=max,scope=golang
 
   CD:
     runs-on: ubuntu-latest
@@ -91,15 +88,8 @@ jobs:
           SHORT_SHA: ${{ needs.CI.outputs.SHORT_SHA }}
           DOCKERHUB_USERNAME: ${{ secrets.USERNAME }}
         run: |
-          echo "SHORT_SHA=${SHORT_SHA}"
           echo "NODEJS_IMAGE=${DOCKERHUB_USERNAME}/nodejs:sha-${SHORT_SHA}" >> "$GITHUB_ENV"
           echo "GOLANG_IMAGE=${DOCKERHUB_USERNAME}/golang:sha-${SHORT_SHA}" >> "$GITHUB_ENV"
-
-      - name: Show deploy image names
-        shell: bash
-        run: |
-          echo "NODEJS_IMAGE=$NODEJS_IMAGE"
-          echo "GOLANG_IMAGE=$GOLANG_IMAGE"
 
       - name: Replace image placeholders in manifests
         shell: bash
@@ -107,14 +97,9 @@ jobs:
           sed -i "s|NODEJS_IMAGE|${NODEJS_IMAGE}|g" nodejs/k8s/deployment.yaml
           sed -i "s|GOLANG_IMAGE|${GOLANG_IMAGE}|g" golang/k8s/deployment.yaml
 
-      - name: Verify rendered manifests
+      - name: Verify placeholders removed
         shell: bash
         run: |
-          echo "===== nodejs deployment ====="
-          cat nodejs/k8s/deployment.yaml
-          echo "===== golang deployment ====="
-          cat golang/k8s/deployment.yaml
-
           if grep -R "NODEJS_IMAGE\|GOLANG_IMAGE" nodejs/k8s golang/k8s; then
             echo "Placeholder replacement failed"
             exit 1
