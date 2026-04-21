@@ -17,7 +17,8 @@ spec:
       serviceAccountName: private
       containers:
         - name: nodejs
-          image: egyhaty/nodejs:SHORT_SHA
-          imagePullPolicy: Always
+          image: NODEJS_IMAGE
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 3000
+            - name: http
+              containerPort: 3000
