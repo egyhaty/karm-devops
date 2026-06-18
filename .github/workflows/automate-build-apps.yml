@@ -117,8 +117,8 @@ jobs:
       - name: Update Helm values tags
         shell: bash
         run: |
-          sed -i 's|^\([[:space:]]*tag:[[:space:]]*\).*|\1"sha-${{ needs.prepare.outputs.SHORT_SHA }}"|' charts/charts/values-node.yaml
-          sed -i 's|^\([[:space:]]*tag:[[:space:]]*\).*|\1"sha-${{ needs.prepare.outputs.SHORT_SHA }}"|' charts/charts/values-go.yaml
+          sed -i 's|^\([[:space:]]*tag:[[:space:]]*\).*|\1"sha-${{ needs.prepare.outputs.SHORT_SHA }}"|' charts/values-node.yaml
+          sed -i 's|^\([[:space:]]*tag:[[:space:]]*\).*|\1"sha-${{ needs.prepare.outputs.SHORT_SHA }}"|' charts/values-go.yaml
 
       - name: Commit and push changes
         shell: bash
