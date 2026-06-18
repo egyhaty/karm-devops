@@ -21,7 +21,7 @@ spec:
       source:
         repoURL: https://github.com/EmaLinuxawy/karm-devops.git
         targetRevision: main
-        path: charts/charts
+        path: charts
         helm:
           releaseName: '{{name}}'
           valueFiles:
