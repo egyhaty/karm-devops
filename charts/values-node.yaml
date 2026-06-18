@@ -1,7 +1,7 @@
 config:
   app: nodejs
 
-replicaCount: 3
+replicaCount: 2
 
 image:
   repository: egyhaty/nodejs

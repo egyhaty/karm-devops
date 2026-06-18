@@ -1,23 +1,28 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: devops-task
+  name: app-of-apps
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-
   source:
     repoURL: https://github.com/EmaLinuxawy/karm-devops.git
     targetRevision: main
-    path: argocd
-
+    path: argocd/apps
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
-
+    namespace: argocd
   syncPolicy:
     automated:
+      enabled: true
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+    retry:
+      limit: 5
+      refresh: true
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
