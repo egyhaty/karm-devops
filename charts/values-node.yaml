@@ -6,11 +6,11 @@ replicaCount: 3
 image:
   repository: egyhaty/nodejs
 <<<<<<< Updated upstream
-  tag: "sha-b29092a"
+  tag: "sha-e711c1a"
   image:
   
 =======
-  tag: "sha-initial"
+  tag: "sha-e711c1a"
   pullPolicy: IfNotPresent
 
 service:
