@@ -5,12 +5,8 @@ replicaCount: 3
 
 image:
   repository: egyhaty/golang
-<<<<<<< Updated upstream
-  tag: "sha-91bd811"
-=======
-  tag: "sha-91bd811"
+  tag: "sha-a31974a"
   pullPolicy: IfNotPresent
 
 service:
   targetPort: 8080
->>>>>>> Stashed changes

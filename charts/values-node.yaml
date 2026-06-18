@@ -5,16 +5,7 @@ replicaCount: 3
 
 image:
   repository: egyhaty/nodejs
-<<<<<<< HEAD
-  tag: "sha-91bd811"
-=======
-<<<<<<< Updated upstream
-  tag: "sha-91bd811"
-  image:
-  
-=======
-  tag: "sha-91bd811"
->>>>>>> dbb978a687ded3d4ea71c000f159a09575230ac1
+  tag: "sha-a31974a"
   pullPolicy: IfNotPresent
 
 service:
