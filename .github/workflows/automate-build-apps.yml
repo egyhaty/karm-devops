@@ -15,6 +15,7 @@ env:
 
 jobs:
   prepare:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     outputs:
       SHORT_SHA: ${{ steps.vars.outputs.SHORT_SHA }}
@@ -28,6 +29,7 @@ jobs:
           echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
   build_nodejs:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     needs: prepare
 
@@ -66,6 +68,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=nodejs
 
   build_golang:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     needs: prepare
 
@@ -80,4 +83,90 @@ jobs:
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD
+          password: ${{ secrets.PASSWORD }}
+
+      - name: Docker metadata for GoLang
+        id: meta_golang
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ secrets.USERNAME }}/golang
+          tags: |
+            type=raw,value=sha-${{ needs.prepare.outputs.SHORT_SHA }}
+            type=ref,event=branch
+            type=ref,event=tag
+
+      - name: Build and push GoLang image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./golang
+          file: ./golang/Dockerfile
+          push: true
+          tags: ${{ steps.meta_golang.outputs.tags }}
+          labels: ${{ steps.meta_golang.outputs.labels }}
+          cache-from: type=gha,scope=golang
+          cache-to: type=gha,mode=max,scope=golang
+
+  update_helm_values:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - build_nodejs
+      - build_golang
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Update Helm values files
+        shell: bash
+        env:
+          SHORT_SHA: ${{ needs.prepare.outputs.SHORT_SHA }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import os
+
+          short_sha = os.environ["SHORT_SHA"]
+
+          files = [
+              Path("charts/values-node.yaml"),
+              Path("charts/values-go.yaml"),
+          ]
+
+          for path in files:
+              content = path.read_text()
+              content = re.sub(
+                  r'(^\s*tag:\s*).*$',
+                  rf'\1"sha-{short_sha}"',
+                  content,
+                  flags=re.MULTILINE
+              )
+              path.write_text(content)
+          PY
+
+      - name: Show diff
+        shell: bash
+        run: |
+          git diff -- charts/values-node.yaml charts/values-go.yaml
+
+      - name: Commit and push updated Helm values
+        shell: bash
+        env:
+          SHORT_SHA: ${{ needs.prepare.outputs.SHORT_SHA }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add charts/values-node.yaml charts/values-go.yaml
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: update image tags to sha-${SHORT_SHA} [skip ci]"
+          git push origin main
