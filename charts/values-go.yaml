@@ -6,9 +6,9 @@ replicaCount: 3
 image:
   repository: egyhaty/golang
 <<<<<<< Updated upstream
-  tag: "sha-e711c1a"
+  tag: "sha-91bd811"
 =======
-  tag: "sha-e711c1a"
+  tag: "sha-91bd811"
   pullPolicy: IfNotPresent
 
 service:
