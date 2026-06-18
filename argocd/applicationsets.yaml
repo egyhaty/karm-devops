@@ -5,33 +5,34 @@ metadata:
   namespace: argocd
 spec:
   generators:
-    - git:
-        repoURL: https://github.com/EmaLinuxawy/karm-devops.git
-        revision: main
-        directories:
-          - path: golang
-          - path: nodejs
+    - list:
+        elements:
+          - name: nodejs
+            valuesFile: values-node.yaml
+          - name: golang
+            valuesFile: values-go.yaml
+
   template:
     metadata:
-      # Each Application gets the folder name as its name (golang or nodejs)
-      name: '{{path.basename}}'
+      name: '{{name}}'
     spec:
       project: default
+
       source:
         repoURL: https://github.com/EmaLinuxawy/karm-devops.git
         targetRevision: main
-        # Point to the common Helm chart
-        path: charts/common-app
+        path: charts/charts
         helm:
-          # Pull values from the specific app folder discovered by the generator
+          releaseName: '{{name}}'
           valueFiles:
-            - '../../{{path}}/values.yaml'
+            - values.yaml
+            - '{{valuesFile}}'
+
       destination:
         server: https://kubernetes.default.svc
         namespace: default
+
       syncPolicy:
         automated:
           prune: true
           selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
