@@ -5,11 +5,11 @@ metadata:
   labels:
     {{- include "charts.labels" . | nindent 4 }}
 spec:
-  {{ if .Values.scaling.enabled }}
-  replicas: {{.Values.scaling.min }}
-  {{ else }}
+  {{- if .Values.scaling.enabled }}
+  replicas: {{ .Values.scaling.min }}
+  {{- else }}
   replicas: {{ .Values.replicaCount }}
-  {{ end }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "charts.selectorLabels" . | nindent 6 }}
@@ -20,8 +20,8 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "charts.labels" . | nindent 8 }}
-	{{- with .Values.podLabels }}
+        {{- include "charts.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
@@ -33,14 +33,14 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: generic
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
           envFrom:
             - configMapRef:

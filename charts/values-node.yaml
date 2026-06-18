@@ -1,5 +1,18 @@
+config:
+  app: nodejs
+
+replicaCount: 3
+
 image:
   repository: egyhaty/nodejs
+<<<<<<< Updated upstream
   tag: "sha-b29092a"
   image:
   
+=======
+  tag: "sha-initial"
+  pullPolicy: IfNotPresent
+
+service:
+  targetPort: 3000
+>>>>>>> Stashed changes

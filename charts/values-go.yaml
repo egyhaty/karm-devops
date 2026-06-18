@@ -1,3 +1,16 @@
+config:
+  app: golang
+
+replicaCount: 3
+
 image:
   repository: egyhaty/golang
+<<<<<<< Updated upstream
   tag: "sha-b29092a"
+=======
+  tag: "sha-initial"
+  pullPolicy: IfNotPresent
+
+service:
+  targetPort: 8080
+>>>>>>> Stashed changes
