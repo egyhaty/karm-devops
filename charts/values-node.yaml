@@ -5,7 +5,7 @@ replicaCount: 3
 
 image:
   repository: egyhaty/nodejs
-  tag: "sha-a31974a"
+  tag: "sha-651374f"
   pullPolicy: IfNotPresent
 
 service:
