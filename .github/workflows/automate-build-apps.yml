@@ -158,8 +158,8 @@ jobs:
         env:
           SHORT_SHA: ${{ needs.prepare.outputs.SHORT_SHA }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "egyhaty"
+          git config user.email "egyhaty@gmail.com"
 
           git add charts/values-node.yaml charts/values-go.yaml
 
