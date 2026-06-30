@@ -1,9 +1,10 @@
-name: Automate_build_apps
+name: Automate Build Apps
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -159,7 +160,8 @@ jobs:
           SHORT_SHA: ${{ needs.prepare.outputs.SHORT_SHA }}
         run: |
           git config user.name "egyhaty"
-          git config user.email "egyhaty@gmail.com"
+          git config user.email "egyhaty@gmailgit status
+.com"
 
           git add charts/values-node.yaml charts/values-go.yaml
 
