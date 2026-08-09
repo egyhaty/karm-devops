@@ -28,6 +28,7 @@ spec:
         alertmanager:
           enabled: true
           alertmanagerSpec:
+            configSecret: alertmanager-monitoring-kube-prometheus-alertmanager
             secrets:
               - alertmanager-slack-webhook
 
