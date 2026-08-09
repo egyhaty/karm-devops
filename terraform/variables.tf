@@ -3,8 +3,3 @@ variable "kubeconfig_path" {
   description = "Path to kubeconfig file"
   default     = "~/.kube/config"
 }
-
-variable "letsencrypt_email" {
-  type        = string
-  description = "Email for Let's Encrypt registration"
-}

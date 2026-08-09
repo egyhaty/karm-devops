@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: node
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`node.murabba.net`)
+      kind: Rule
+      services:
+        - name: nodejs
+          port: 80
+  tls:
+    secretName: node-murabba-net-tls

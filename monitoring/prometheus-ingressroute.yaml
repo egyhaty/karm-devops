@@ -6,11 +6,17 @@ metadata:
 spec:
   entryPoints:
     - websecure
+
   routes:
     - match: Host(`prometheus.murabba.net`)
       kind: Rule
+
+      middlewares:
+        - name: prometheus-auth
+
       services:
         - name: monitoring-kube-prometheus-prometheus
           port: 9090
+
   tls:
     secretName: prometheus-murabba-net-tls

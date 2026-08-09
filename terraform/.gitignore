@@ -1,1 +1,27 @@
-terraform.tfvars
+# Terraform working directory
+.terraform/
+
+# Terraform state: may contain infrastructure details and sensitive values
+*.tfstate
+*.tfstate.*
+
+# Terraform variable files: keep local values outside Git
+*.tfvars
+*.tfvars.json
+
+# Terraform plans
+*.tfplan
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration
+.terraformrc
+terraform.rc

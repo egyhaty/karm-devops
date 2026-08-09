@@ -1,32 +1,67 @@
-resource "kubernetes_namespace" "traefik" {
-  metadata {
-    name = "traefik"
-  }
-}
-
 resource "helm_release" "traefik" {
-  name       = "traefik"
+  name             = "traefik"
+  namespace        = "traefik"
+  create_namespace = true
+
   repository = "https://traefik.github.io/charts"
   chart      = "traefik"
-  namespace  = kubernetes_namespace.traefik.metadata[0].name
+  version    = "41.1.1"
 
-  values = [yamlencode({
-    additionalArguments = [
-      "--api.dashboard=true",
-      "--entrypoints.web.address=:80",
-      "--entrypoints.websecure.address=:443",
-      "--providers.kubernetesingress=true",
-      "--providers.kubernetescrd=true"
-    ]
-    ports = {
-      web = {
-        port   = 80
-        expose = { default = true }
+  depends_on = [
+    helm_release.metallb
+  ]
+
+  wait    = true
+  timeout = 300
+
+  values = [
+    yamlencode({
+      additionalArguments = [
+        "--api.dashboard=true",
+        "--entrypoints.web.address=:8000",
+        "--entrypoints.websecure.address=:8443",
+        "--providers.kubernetesingress=true",
+        "--providers.kubernetescrd=true"
+      ]
+
+      deployment = {
+        kind     = "Deployment"
+        replicas = 1
       }
-      websecure = {
-        port   = 443
-        expose = { default = true }
+
+      podSecurityContext = {
+        fsGroup      = 65532
+        runAsGroup   = 65532
+        runAsNonRoot = true
+        runAsUser    = 65532
       }
-    }
-  })]
+
+      securityContext = {
+        allowPrivilegeEscalation = false
+        capabilities = {
+          drop = ["ALL"]
+        }
+        readOnlyRootFilesystem = true
+      }
+
+      ports = {
+        web = {
+          expose = {
+            default = true
+          }
+          port = 8000
+        }
+        websecure = {
+          expose = {
+            default = true
+          }
+          port = 8443
+        }
+      }
+
+      service = {
+        type = "LoadBalancer"
+      }
+    })
+  ]
 }
