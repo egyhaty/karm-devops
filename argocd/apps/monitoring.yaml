@@ -20,6 +20,10 @@ spec:
       values: |
         grafana:
           enabled: true
+          admin:
+            existingSecret: grafana-admin-credentials
+            userKey: admin-user
+            passwordKey: admin-password
 
         alertmanager:
           enabled: true
