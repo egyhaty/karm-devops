@@ -37,7 +37,7 @@ spec:
               resolve_timeout: 5m
 
             route:
-              receiver: slack
+              receiver: "null"
               group_by:
                 - alertname
                 - namespace
@@ -49,6 +49,10 @@ spec:
                 - receiver: "null"
                   matchers:
                     - alertname = "Watchdog"
+
+                - receiver: slack
+                  matchers:
+                    - severity =~ "critical|warning"
 
             receivers:
               - name: slack
