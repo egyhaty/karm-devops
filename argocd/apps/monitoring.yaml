@@ -45,11 +45,18 @@ spec:
               group_interval: 5m
               repeat_interval: 4h
 
+              routes:
+                - receiver: "null"
+                  matchers:
+                    - alertname = "Watchdog"
+
             receivers:
               - name: slack
                 slack_configs:
                   - api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/slack-webhook-url
                     send_resolved: true
+
+              - name: "null"
 
         prometheus:
           enabled: true
