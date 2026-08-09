@@ -62,6 +62,20 @@ spec:
 
               - name: "null"
 
+        additionalPrometheusRulesMap:
+          application-deployment-alerts:
+            groups:
+              - name: application-deployment-alerts
+                rules:
+                  - alert: ApplicationDeploymentUnavailable
+                    expr: kube_deployment_status_replicas_available{namespace="default",deployment=~"golang|nodejs"} < kube_deployment_spec_replicas{namespace="default",deployment=~"golang|nodejs"}
+                    for: 5m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: "Application deployment has unavailable replicas"
+                      description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has fewer available replicas than requested for more than 5 minutes."
+
         prometheus:
           enabled: true
           prometheusSpec:
