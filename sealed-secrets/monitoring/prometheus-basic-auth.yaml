@@ -1,0 +1,14 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: prometheus-basic-auth
+  namespace: monitoring
+spec:
+  encryptedData:
+    users: AgBoyo0z6qDSJ3JAFtmYGZJ+NflKz2V37kOqC9t/RLmv3rJX9ZAtnFA8yqBnbePTCcdB2NwS/r5sxDxOGvrqoTsp2ABWERV32s7Toi/JRMQZfaS4C/GCmeA8e0v+9e1CP3+K4J29fUqnJqe5g3nZYgcNNRIuDqyvBuK/21bfjLTI/nyQ66DDnKIbwiBDz0BncmFS14OEmjOoFT7QbpeBQyVIxLbsrewqBeyWegiRcr2TneWfOHtkAOUsXSnzhy8GOuWdbjTv3XJ1p6kbmLChXtRuNyD+aV88q21sc62iD1tR7pnL7onbAqichMtT0iyDm0aLryndtPdtukg4FVOkPbQMb2aHEB4ITJ7qL8wUqWliKlGuYpuZ5WU7Rc3nYNRclUQwvapaoi1JAwVjnYRP5HJGIM99qITDq23H3dJK5xNzJZPJBKlYDiQHMN0RwFlkmkucLqGRyzVNgSMTJx8q5RUSfp4dmLJdD+Z3WRoZoL9yfqN1TsDnji9mz2KI/d0M+1E8n1xt436nkrvrBIWdwh14rzq7CZNqqggGAGkqnd4UWtJNRLYq0cEXIemP6/tAMTiOx4EMbrHYKYT6QEOAtMOzXzkuaFolmf10OzrTquIq3EzMUtHJq95yI453DJkNXNSh0CIrLESP7GUWdZeGrfnoHkQPdsTx/arhtc1YiKZLgrhe122FudDsZJcZWatv/4bWnGiobn/7oNdD7wbzOfr+9XGewLY7P6WejNG/aKpuXDa8+bExk02+tgg9xKLkEagDvfvEagd9OzYIGixnvS2dRa0c
+  template:
+    metadata:
+      name: prometheus-basic-auth
+      namespace: monitoring
+    type: Opaque
