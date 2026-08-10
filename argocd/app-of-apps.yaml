@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/EmaLinuxawy/karm-devops.git
+    repoURL: https://github.com/egyhaty/karm-devops.git
     targetRevision: main
     path: argocd/apps
   destination:
