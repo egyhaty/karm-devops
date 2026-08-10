@@ -41,3 +41,7 @@ certificate:
     kind: ClusterIssuer
   dnsNames:
     - go.murabba.net
+
+pdb:
+  enabled: true
+  minAvailable: 2
