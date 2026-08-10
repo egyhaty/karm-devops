@@ -41,6 +41,23 @@ ingress:
   hosts: []
   tls: []
 
+probes:
+  startup:
+    path: /healthz
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 12
+  readiness:
+    path: /healthz
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+  liveness:
+    path: /healthz
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
 resources: {}
 
 volumes: []
