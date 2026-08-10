@@ -1,0 +1,21 @@
+{{- with .Values.serviceMonitor }}
+{{- if .enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "charts.fullname" $ }}
+  labels:
+    {{- include "charts.labels" $ | nindent 4 }}
+    {{- with .labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "charts.selectorLabels" $ | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ .path | default "/metrics" }}
+      interval: {{ .interval | default "30s" }}
+{{- end }}
+{{- end }}
