@@ -5,7 +5,7 @@ replicaCount: 3
 
 image:
   repository: egyhaty/golang
-  tag: "sha-d1d2365"
+  tag: "sha-890ea19"
   pullPolicy: IfNotPresent
 
 service:
