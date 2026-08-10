@@ -31,3 +31,13 @@ ingress:
     - secretName: go-murabba-net-tls
       hosts:
         - go.murabba.net
+
+certificate:
+  enabled: true
+  name: go-murabba-net
+  secretName: go-murabba-net-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - go.murabba.net

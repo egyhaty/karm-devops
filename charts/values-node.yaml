@@ -31,3 +31,13 @@ ingress:
     - secretName: node-murabba-net-tls
       hosts:
         - node.murabba.net
+
+certificate:
+  enabled: true
+  name: node-murabba-net
+  secretName: node-murabba-net-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - node.murabba.net
