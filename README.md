@@ -1,193 +1,132 @@
-# Kubernetes GitOps Platform
+# GitOps Kubernetes Platform
 
-A production-inspired DevOps and SRE portfolio project that deploys and operates Go and Node.js applications on Kubernetes through a GitOps workflow.
+A production-style Kubernetes platform managed through GitOps. The repository defines application delivery, ingress, TLS, monitoring, and secret management so that changes are reviewed and versioned in Git, then reconciled into the cluster by Argo CD.
 
-The platform uses Argo CD, Helm, Prometheus, Grafana, Alertmanager, Traefik, cert-manager, and Slack alerting. Infrastructure and application configuration are stored declaratively in Git and automatically reconciled to the Kubernetes cluster.
+## What this platform delivers
 
-## Project Goals
-
-- Demonstrate a practical GitOps delivery model for Kubernetes workloads
-- Deploy and operate Go and Node.js applications with Helm and Argo CD
-- Provide observability through metrics, dashboards, and actionable alerts
-- Secure public endpoints with Traefik, cert-manager, and TLS certificates
-- Apply operational practices that support reliable application delivery
+- GitOps-based continuous delivery with Argo CD and an app-of-apps bootstrap pattern.
+- Public HTTPS routing through Traefik and cert-manager-managed TLS certificates.
+- Prometheus and Grafana monitoring for Kubernetes, workloads, and node health.
+- Sealed Secrets for keeping encrypted secrets in Git without committing plaintext credentials.
+- Go and Node.js workloads deployed from declarative Kubernetes/Helm configuration.
+- Terraform configuration for infrastructure provisioning.
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    Developer[Developer]
-    GitHub[GitHub Repository]
-
-    Developer -->|Push Git changes| GitHub
-    GitHub -->|Desired state| ArgoCD[Argo CD App-of-Apps]
-
-    ArgoCD -->|Deploy and reconcile| K8s[Kubernetes Cluster]
-
-    K8s --> NodeJS[Node.js Deployment]
-    K8s --> Golang[Go Deployment]
-    K8s --> Traefik[Traefik Ingress Controller]
-    K8s --> CertManager[cert-manager]
-    K8s --> Monitoring[Prometheus Stack]
-
-    Traefik --> NodeJS
-    Traefik --> Golang
-    CertManager --> TLS[TLS Certificates]
-
-    Monitoring --> Prometheus[Prometheus]
-    Monitoring --> Grafana[Grafana]
-    Monitoring --> Alertmanager[Alertmanager]
-
-    Prometheus -->|Application and cluster metrics| Alertmanager
-    Alertmanager -->|Warning and critical alerts| Slack[Slack]
+```text
+Developer / CI
+      |
+      v
+GitHub repository (desired state)
+      |
+      v
+Argo CD app-of-apps
+      |
+      +-- Go application
+      +-- Node.js application
+      +-- Monitoring stack
+      +-- Sealed Secrets configuration
+      |
+      v
+Kubernetes cluster
+      |
+      +-- Traefik Ingress Controller
+      |       +-- HTTPS endpoints
+      |
+      +-- cert-manager
+      |       +-- TLS certificate lifecycle
+      |
+      +-- Prometheus + Grafana
+      |       +-- Cluster, namespace, pod, and node visibility
+      |
+      +-- Application workloads
 ```
 
-## Technology Stack
+## Core components
 
-| Area | Technologies |
-|---|---|
-| Container orchestration | Kubernetes |
-| GitOps delivery | Argo CD, App-of-Apps pattern |
-| Package management | Helm |
-| Applications | Node.js, Go |
-| Ingress | Traefik |
-| TLS automation | cert-manager, ACME |
-| Monitoring | Prometheus, kube-state-metrics, node-exporter |
-| Visualization | Grafana |
-| Alerting | Alertmanager, Slack Incoming Webhook |
-| Infrastructure as Code | Terraform |
-| Source control | GitHub |
+| Component | Purpose |
+| --- | --- |
+| Argo CD | Continuously reconciles the cluster with the desired state stored in Git. |
+| Traefik | Routes external HTTPS traffic to services inside the cluster. |
+| cert-manager | Obtains and renews TLS certificates for public endpoints. |
+| Prometheus | Collects Kubernetes, application, and node metrics. |
+| Grafana | Visualizes cluster capacity, namespace resource usage, and node health. |
+| Sealed Secrets | Stores encrypted secrets safely in the repository and materializes Kubernetes Secrets in-cluster. |
+| Terraform | Keeps infrastructure provisioning reproducible and version controlled. |
 
-## Repository Structure
+## GitOps workflow
+
+1. A change is committed to this repository.
+2. Argo CD detects the new revision on `main`.
+3. Argo CD compares Git with the live cluster state.
+4. The required Kubernetes resources are applied automatically.
+5. Argo CD reports the application as `Synced` and `Healthy`.
+6. Prometheus and Grafana expose the operational impact of the change.
+
+The platform currently manages the `app-of-apps`, `golang`, `nodejs`, `monitoring`, `sealed-secrets`, and `sealed-secrets-values` applications through Argo CD.
+
+## Repository layout
 
 ```text
 .
-├── argocd/
-│   └── apps/                # Argo CD Application manifests
-├── cert-manager/            # Certificate management configuration
-├── charts/                  # Helm chart configuration
-├── golang/                  # Go application and deployment assets
-├── monitoring/              # Monitoring-related configuration
-├── nodejs/                  # Node.js application and deployment assets
-├── terraform/               # Infrastructure as Code
-└── traefik/                 # Ingress controller configuration
+├── argocd/           # Bootstrap application, managed applications, certificate, and Traefik routes
+├── cert-manager/     # Certificate-management resources
+├── charts/            # Helm chart and workload values
+├── golang/            # Go application manifests
+├── monitoring/        # Prometheus, Grafana, Alertmanager, and dashboards
+├── nodejs/            # Node.js application manifests
+├── sealed-secrets/    # Encrypted secret manifests
+├── terraform/         # Infrastructure-as-code configuration
+└── traefik/           # Ingress controller configuration
 ```
 
-## GitOps Workflow
+## Security model
 
-1. A configuration change is committed and pushed to the `main` branch.
-2. Argo CD detects the desired state stored in Git.
-3. Argo CD deploys or reconciles Kubernetes resources automatically.
-4. Self-healing restores managed resources if their live state drifts from Git.
-5. Prometheus monitors the cluster and applications after deployment.
+- Public endpoints are served through HTTPS with certificates managed by cert-manager.
+- Traefik terminates TLS at the cluster edge and routes traffic only to the intended internal services.
+- Argo CD operates behind Traefik with `server.insecure: "true"`; this permits internal HTTP between Traefik and the Argo CD server while HTTPS remains enforced externally.
+- Sensitive values are stored as Sealed Secrets rather than plaintext Kubernetes Secrets.
+- Deployment state and operational configuration are auditable through Git history.
 
-The monitoring application uses automated sync, pruning, and self-healing:
+## Observability
 
-```yaml
-syncPolicy:
-  automated:
-    prune: true
-    selfHeal: true
-```
+The monitoring stack provides visibility at several layers:
 
-## Applications
+- **Cluster:** CPU and memory utilization, requests/limits, namespace consumption, network, and storage activity.
+- **Workloads:** Pod and namespace resource usage across system and application namespaces.
+- **Node:** CPU, memory, filesystem, uptime, and network health through Node Exporter.
+- **Applications:** Deployment health and reconciliation status through Argo CD.
 
-The cluster runs two sample workloads in the `default` namespace:
-
-| Application | Deployment | Replicas |
-|---|---|---|
-| Go service | `golang` | 3 |
-| Node.js service | `nodejs` | 3 |
-
-Both workloads are deployed and managed declaratively through the GitOps workflow.
-
-## Observability and Alerting
-
-The monitoring stack is deployed with `kube-prometheus-stack` and includes Prometheus, Grafana, Alertmanager, kube-state-metrics, and node-exporter.
-
-### Alert Flow
-
-```text
-Kubernetes metrics
-→ Prometheus evaluates alert rules
-→ Alertmanager groups and routes alerts
-→ Slack receives actionable notifications
-```
-
-### Alert Routing
-
-| Alert category | Destination |
-|---|---|
-| `severity=critical` | Slack |
-| `severity=warning` | Slack |
-| `severity=info` or no severity label | Suppressed |
-| `Watchdog` | Suppressed |
-
-### Custom Application Alert
-
-`ApplicationDeploymentUnavailable` monitors the Go and Node.js deployments.
-
-It triggers when the number of available replicas is lower than the desired replica count for more than five minutes:
-
-```promql
-kube_deployment_status_replicas_available{namespace="default",deployment=~"golang|nodejs"}
-<
-kube_deployment_spec_replicas{namespace="default",deployment=~"golang|nodejs"}
-```
-
-The alert is labelled `severity: critical`, so Alertmanager routes it to Slack.
-
-## Validation Performed
-
-The following end-to-end checks have been completed:
-
-- Argo CD application status verified as `Synced` and `Healthy`
-- Alertmanager configuration verified from the live Kubernetes Secret
-- Slack routing tested successfully with a manual `warning` alert
-- Custom `PrometheusRule` created through Helm values and GitOps
-- Prometheus Operator validation confirmed for the custom rule
-- Prometheus API confirmed that `ApplicationDeploymentUnavailable` is loaded
-
-## Useful Commands
-
-Check Argo CD application health without installing the Argo CD CLI:
+## Validation checklist
 
 ```bash
-kubectl -n argocd get application monitoring \
-  -o jsonpath='Sync Status: {.status.sync.status}{"\n"}Health Status: {.status.health.status}{"\n"}'
+# GitOps application health
+kubectl get applications -n argocd
+
+# Argo CD reverse-proxy configuration
+kubectl get configmap argocd-cmd-params-cm -n argocd \
+  -o jsonpath='{.data.server\.insecure}'; echo
+
+# Encrypted-secret reconciliation
+kubectl get sealedsecrets -A
+
+# Platform workloads
+kubectl get pods -A
 ```
 
-List custom and built-in Prometheus rules:
+A healthy platform should show Argo CD applications as `Synced` and `Healthy`, `server.insecure` as `true`, and Sealed Secrets as synchronized.
 
-```bash
-kubectl -n monitoring get prometheusrules
-```
+## Design principles
 
-View the custom application availability rule:
+- **Declarative:** The repository describes the desired environment.
+- **Repeatable:** Infrastructure and application configuration can be recreated from version-controlled definitions.
+- **Observable:** Metrics and dashboards make platform health measurable.
+- **Secure by default:** TLS and encrypted secret management are built into the delivery path.
+- **Auditable:** Operational changes are captured in Git commits.
 
-```bash
-kubectl -n monitoring get prometheusrule \
-  monitoring-kube-prometheus-application-deployment-alerts \
-  -o yaml
-```
+## Next improvements
 
-Check application deployments:
-
-```bash
-kubectl get deployments --all-namespaces
-```
-
-## Roadmap
-
-- Add liveness and readiness probes to application workloads
-- Define CPU and memory requests and limits
-- Add Kubernetes security contexts and run containers as non-root
-- Add NetworkPolicies for workload isolation
-- Add CI checks for YAML, Helm, and Kubernetes manifests
-- Add container image vulnerability scanning
-- Document alert response runbooks
-- Add screenshots of Argo CD, Grafana dashboards, and Slack alerts
-
-## Key Skills Demonstrated
-
-Kubernetes · GitOps · Argo CD · Helm · Terraform · Prometheus · Grafana · Alertmanager · Slack Alerting · Traefik · cert-manager · TLS · Observability · Site Reliability Engineering
+- Add alert rules and notification routing for service and workload failures.
+- Add CI validation for Helm rendering, Kubernetes manifests, and policy checks before merge.
+- Add automated backup and restore procedures for critical platform state.
+- Add screenshots or dashboard links to this document for operational walkthroughs.
