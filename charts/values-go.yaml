@@ -52,3 +52,9 @@ serviceMonitor:
     release: monitoring
   path: /metrics
   interval: 30s
+
+prometheusRule:
+  enabled: true
+  labels:
+    release: monitoring
+  memoryLimitBytes: "134217728"

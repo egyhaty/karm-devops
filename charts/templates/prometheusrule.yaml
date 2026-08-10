@@ -1,0 +1,46 @@
+{{- with .Values.prometheusRule }}
+{{- if .enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "charts.fullname" $ }}-rules
+  labels:
+    {{- include "charts.labels" $ | nindent 4 }}
+    {{- with .labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: {{ include "charts.fullname" $ }}.rules
+      rules:
+        - alert: {{ $.Release.Name | title }}AppDown
+          expr: up{namespace="{{ $.Release.Namespace }}", service="{{ $.Release.Name }}"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            app: {{ $.Release.Name }}
+          annotations:
+            summary: "{{ $.Release.Name }} target down"
+            description: "{{`{{ $labels.pod }}`}} of {{ $.Release.Name }} has been down for more than 2 minutes."
+
+        - alert: {{ $.Release.Name | title }}PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace="{{ $.Release.Namespace }}", pod=~"{{ $.Release.Name }}-.*"}[15m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+            app: {{ $.Release.Name }}
+          annotations:
+            summary: "{{ $.Release.Name }} pod restarting frequently"
+            description: "{{`{{ $labels.pod }}`}} restarted more than 3 times in the last 15 minutes."
+
+        - alert: {{ $.Release.Name | title }}HighMemoryUsage
+          expr: sum by (pod) (container_memory_working_set_bytes{namespace="{{ $.Release.Namespace }}", pod=~"{{ $.Release.Name }}-.*", container!=""}) / {{ .memoryLimitBytes }} > 0.9
+          for: 5m
+          labels:
+            severity: warning
+            app: {{ $.Release.Name }}
+          annotations:
+            summary: "{{ $.Release.Name }} pod near memory limit"
+            description: "{{`{{ $labels.pod }}`}} is using more than 90% of its memory limit."
+{{- end }}
+{{- end }}
