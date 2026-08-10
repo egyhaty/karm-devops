@@ -58,3 +58,4 @@ prometheusRule:
   labels:
     release: monitoring
   memoryLimitBytes: "134217728"
+
