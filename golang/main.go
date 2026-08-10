@@ -32,7 +32,15 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+
 	mux.Handle("/metrics", promhttp.Handler())
+
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok\n"))
+	})
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		httpRequests.WithLabelValues(r.Method, r.URL.Path).Inc()
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -41,6 +49,7 @@ func main() {
 
 	addr := ":" + port
 	log.Printf("golang app listening on %s", addr)
+
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

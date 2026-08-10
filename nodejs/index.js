@@ -16,8 +16,17 @@ const httpRequests = new client.Counter({
 const port = process.env.PORT || "3000";
 const version = process.env.APP_VERSION || "dev";
 
+app.get("/healthz", (_req, res) => {
+  res.type("text/plain").status(200).send("ok\n");
+});
+
 app.get("/", (req, res) => {
-  httpRequests.inc({ method: req.method, path: req.path, status_code: "200" });
+  httpRequests.inc({
+    method: req.method,
+    path: req.path,
+    status_code: "200",
+  });
+
   res.type("text/plain").send(`hello world\nversion=${version}\n`);
 });
 
