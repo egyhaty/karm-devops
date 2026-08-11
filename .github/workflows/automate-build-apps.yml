@@ -4,14 +4,20 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'golang/**'
+      - 'nodejs/**'
+      - '.github/workflows/automate-build-apps.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: build-and-promote-main
+  cancel-in-progress: false
 
 env:
-  DOCKERHUB_USERNAME: ${{ secrets.USERNAME }}
-  DOCKERHUB_TOKEN: ${{ secrets.PASSWORD }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
@@ -114,6 +120,8 @@ jobs:
       - prepare
       - build_nodejs
       - build_golang
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout source code
@@ -121,38 +129,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Rebase on the latest main branch
+        shell: bash
+        run: git pull --rebase origin main
+
       - name: Update Helm values files
         shell: bash
         env:
           SHORT_SHA: ${{ needs.prepare.outputs.SHORT_SHA }}
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          import os
-
-          short_sha = os.environ["SHORT_SHA"]
-
-          files = [
-              Path("charts/values-node.yaml"),
-              Path("charts/values-go.yaml"),
-          ]
-
-          for path in files:
-              content = path.read_text()
-              content = re.sub(
-                  r'(^\s*tag:\s*).*$',
-                  rf'\1"sha-{short_sha}"',
-                  content,
-                  flags=re.MULTILINE
-              )
-              path.write_text(content)
-          PY
+          for file in charts/values-node.yaml charts/values-go.yaml; do
+            sed -i -E \
+              "s|^([[:space:]]*tag:[[:space:]]*).*|\1\"sha-${SHORT_SHA}\"|" \
+              "$file"
+          done
 
       - name: Show diff
         shell: bash
-        run: |
-          git diff -- charts/values-node.yaml charts/values-go.yaml
+        run: git diff -- charts/values-node.yaml charts/values-go.yaml
 
       - name: Commit and push updated Helm values
         shell: bash
@@ -170,4 +164,4 @@ jobs:
           fi
 
           git commit -m "chore: update image tags to sha-${SHORT_SHA} [skip ci]"
-          git push origin main
+          git push origin HEAD:main
