@@ -27,7 +27,9 @@ securityContext: {}
 
 scaling:
   enabled: false
-  min: 5
+  min: 3
+  max: 6
+  targetCPUUtilizationPercentage: 70
 
 service:
   type: ClusterIP

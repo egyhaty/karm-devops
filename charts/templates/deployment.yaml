@@ -5,9 +5,7 @@ metadata:
   labels:
     {{- include "charts.labels" . | nindent 4 }}
 spec:
-  {{- if .Values.scaling.enabled }}
-  replicas: {{ .Values.scaling.min }}
-  {{- else }}
+  {{- if not .Values.scaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:

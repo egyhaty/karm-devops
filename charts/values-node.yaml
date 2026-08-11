@@ -59,3 +59,8 @@ prometheusRule:
     release: monitoring
   memoryLimitBytes: "134217728"
 
+scaling:
+  enabled: true
+  min: 3
+  max: 6
+  targetCPUUtilizationPercentage: 70
