@@ -1,143 +1,142 @@
-# Kubernetes GitOps Platform
+# Karm DevOps Platform
 
-A production-inspired DevOps and SRE platform that deploys and operates Go and Node.js workloads on Kubernetes through a GitOps workflow. Infrastructure, application delivery, observability, alerting, ingress, TLS, and encrypted secrets are defined declaratively in Git and reconciled automatically by Argo CD.
+A production-oriented Kubernetes platform demonstrating infrastructure as code, GitOps delivery, secure configuration management, TLS automation, and observability.
 
-## Highlights
+This repository is also an interview-ready portfolio project. It is designed to show how I approach platform design, repeatable deployments, operational troubleshooting, and production safety.
 
-- **GitOps delivery:** Argo CD app-of-apps with automated sync, pruning, and self-healing.
-- **Applications:** Go and Node.js workloads deployed declaratively with Helm and Kubernetes.
-- **Secure edge:** Traefik routes public traffic over HTTPS; cert-manager manages TLS certificates.
-- **Observability:** Prometheus, Grafana, kube-state-metrics, and Node Exporter provide cluster, workload, and node visibility.
-- **Alerting:** Alertmanager routes critical and warning alerts to Slack.
-- **Secret management:** Sealed Secrets keep sensitive configuration encrypted in Git.
-- **Infrastructure as code:** Terraform keeps infrastructure provisioning reproducible.
+## Professional focus
+
+- Kubernetes administration and workload operations
+- GitOps with Argo CD
+- Helm-based application packaging
+- Infrastructure as code with Terraform
+- Ingress and automated TLS with Traefik and cert-manager
+- Encrypted secret delivery with Sealed Secrets
+- Metrics, dashboards, and alerting with Prometheus, Grafana, and Alertmanager
+- Linux infrastructure operations and incident troubleshooting
+
+> Kubernetes administration knowledge is backed by the Certified Kubernetes Administrator (CKA) certification. This project demonstrates how that knowledge is applied in an end-to-end platform workflow.
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    Developer[Developer] -->|Push Git changes| GitHub[GitHub Repository]
-    GitHub -->|Desired state| ArgoCD[Argo CD App-of-Apps]
-    ArgoCD -->|Deploy and reconcile| K8s[Kubernetes Cluster]
-
-    K8s --> NodeJS[Node.js Deployment]
-    K8s --> Golang[Go Deployment]
-    K8s --> Traefik[Traefik Ingress Controller]
-    K8s --> CertManager[cert-manager]
-    K8s --> Monitoring[Prometheus Stack]
-    K8s --> SealedSecrets[Sealed Secrets]
-
-    Traefik --> NodeJS
-    Traefik --> Golang
-    CertManager --> TLS[TLS Certificates]
-
-    Monitoring --> Prometheus[Prometheus]
-    Monitoring --> Grafana[Grafana]
-    Monitoring --> Alertmanager[Alertmanager]
-    Prometheus -->|Metrics and alert rules| Alertmanager
-    Alertmanager -->|Critical and warning alerts| Slack[Slack]
-```
-
-## Technology Stack
-
-| Area | Technologies |
-| --- | --- |
-| Container orchestration | Kubernetes |
-| GitOps delivery | Argo CD, App-of-Apps |
-| Package management | Helm |
-| Applications | Go, Node.js |
-| Ingress | Traefik |
-| TLS automation | cert-manager, ACME |
-| Metrics | Prometheus, kube-state-metrics, Node Exporter |
-| Dashboards | Grafana |
-| Alerting | Alertmanager, Slack webhook |
-| Secret management | Bitnami Sealed Secrets |
-| Infrastructure as code | Terraform |
-| Source control | GitHub |
-
-## GitOps Workflow
-
-1. A change is committed and pushed to `main`.
-2. Argo CD detects the desired state stored in Git.
-3. Argo CD applies or reconciles the Kubernetes resources.
-4. Automated pruning removes resources no longer declared in Git.
-5. Self-healing restores managed resources when live state drifts.
-6. Prometheus and Grafana expose the operational state after deployment.
-
-The active Argo CD applications are `app-of-apps`, `golang`, `nodejs`, `monitoring`, `sealed-secrets`, and `sealed-secrets-values`. All are currently reconciled as `Synced` and `Healthy`.
-
-## Repository Structure
-
 ```text
-.
-├── argocd/           # Bootstrap application, managed apps, certificate, and ingress route
-│   └── apps/          # Argo CD Application manifests and GitOps-managed platform config
-├── cert-manager/     # Certificate-management resources
-├── charts/            # Helm chart and application values
-├── golang/            # Go workload manifests
-├── monitoring/        # Prometheus, Grafana, Alertmanager, rules, and dashboards
-├── nodejs/            # Node.js workload manifests
-├── sealed-secrets/    # Encrypted secret manifests
-├── terraform/         # Infrastructure-as-code configuration
-└── traefik/           # Traefik ingress-controller configuration
+Developer
+   |
+   +--> GitHub Actions
+   |      +--> lint and validation
+   |      +--> security checks
+   |      +--> image build and publish
+   |
+   +--> Git repository
+             |
+             +--> Argo CD
+                    |
+                    +--> Kubernetes cluster
+                           +--> Application workloads
+                           +--> Traefik ingress
+                           +--> cert-manager
+                           +--> Sealed Secrets
+                           +--> Prometheus / Grafana / Alertmanager
 ```
 
-## Application Delivery
+## Repository layout
 
-Two workloads run in the `default` namespace and are managed through the same GitOps workflow:
+| Path | Purpose |
+|---|---|
+| `terraform/` | Infrastructure provisioning and repeatability |
+| `charts/` | Helm charts and application packaging |
+| `argocd/` | Argo CD applications and GitOps configuration |
+| `traefik/` | Ingress and traffic-routing configuration |
+| `cert-manager/` | Certificate lifecycle configuration |
+| `sealed-secrets/` | Encrypted secret manifests |
+| `monitoring/` | Metrics, dashboards, and alerting configuration |
+| `golang/` | Go application workload |
+| `nodejs/` | Node.js application workload |
+| `docs/` | Architecture, runbooks, troubleshooting, and security notes |
 
-| Application | Deployment | Replicas |
-| --- | --- | --- |
-| Go service | `golang` | 3 |
-| Node.js service | `nodejs` | 3 |
+## GitOps workflow
 
-## Observability and Alerting
+1. A change is made through Git and reviewed.
+2. Validation and security checks run before deployment.
+3. The desired state is stored in the repository.
+4. Argo CD reconciles the desired state with the Kubernetes cluster.
+5. Health status and drift are observed through Argo CD and monitoring.
+6. A failed release can be investigated and rolled back through Git.
 
-The monitoring stack is deployed with `kube-prometheus-stack` and includes Prometheus, Grafana, Alertmanager, kube-state-metrics, and Node Exporter.
+## Platform capabilities
 
-```text
-Kubernetes and application metrics
-→ Prometheus evaluates alert rules
-→ Alertmanager groups and routes alerts
-→ Slack receives actionable notifications
-```
+### Kubernetes operations
 
-`ApplicationDeploymentUnavailable` monitors the Go and Node.js deployments. It fires when available replicas remain below the desired count for more than five minutes, and it is labelled `severity: critical` for Slack routing.
+The project covers workload deployment, resource configuration, health checks, ingress, TLS, secrets, and operational troubleshooting. Resource requests and limits, readiness/liveness behavior, rollout safety, and failure recovery should be considered for every workload.
 
-```promql
-kube_deployment_status_replicas_available{namespace="default",deployment=~"golang|nodejs"}
-<
-kube_deployment_spec_replicas{namespace="default",deployment=~"golang|nodejs"}
-```
+### Delivery and packaging
 
-## Security and Access
+Helm provides repeatable application packaging and environment-aware configuration. Argo CD provides continuous reconciliation, drift detection, deployment history, and Git-based rollback.
 
-- Public endpoints are protected with HTTPS certificates managed by cert-manager.
-- Traefik terminates TLS at the cluster edge and routes traffic to the intended internal services.
-- Argo CD runs behind Traefik with `server.insecure: "true"`: TLS remains enforced externally, while Traefik communicates with the Argo CD server over internal HTTP.
-- Sealed Secrets are synchronized in the `default`, `monitoring`, and `traefik` namespaces, so plaintext credentials are not committed to Git.
-- Git history provides an audit trail for platform and deployment changes.
+### Security
 
-## Validation Commands
+Secrets should never be committed in plaintext. Sealed Secrets are used for encrypted secret delivery, and the security documentation describes repository checks and operational safeguards.
 
-```bash
-# GitOps health
-kubectl get applications -n argocd
+### Observability
 
-# Argo CD reverse-proxy mode
-kubectl get configmap argocd-cmd-params-cm -n argocd \
-  -o jsonpath='{.data.server\.insecure}'; echo
+Prometheus collects metrics, Grafana provides dashboards, and Alertmanager routes alerts. The runbooks connect symptoms to investigation commands and recovery actions.
 
-# Sealed Secret reconciliation
-kubectl get sealedsecrets -A
+## Operational scenarios
 
-# Cluster workload status
-kubectl get pods -A
+The project is intended to be demonstrated through scenarios such as:
 
-# Prometheus rules
-kubectl -n monitoring get prometheusrules
-```
+- A pod enters `CrashLoopBackOff`.
+- A deployment remains unavailable because readiness checks fail.
+- A service cannot reach its target pods.
+- A certificate approaches expiry or fails issuance.
+- Argo CD detects drift or a failed synchronization.
+- A rollout requires a controlled rollback.
+- Metrics or alerts indicate resource pressure.
 
-## Skills Demonstrated
+See the [troubleshooting guide](docs/troubleshooting.md) and [runbook](docs/runbook.md).
 
-Kubernetes · GitOps · Argo CD · Helm · Terraform · Prometheus · Grafana · Alertmanager · Slack Alerting · Traefik · cert-manager · TLS · Sealed Secrets · Observability · Site Reliability Engineering
+## Getting started
+
+The exact infrastructure and cluster requirements depend on the environment in which the project is deployed.
+
+1. Review the [architecture documentation](docs/architecture.md).
+2. Inspect the Terraform variables and backend configuration.
+3. Review the Helm values and Argo CD application definitions.
+4. Ensure that required DNS, TLS, and secret prerequisites are available.
+5. Deploy infrastructure and cluster prerequisites through the documented workflow.
+6. Apply the GitOps configuration and verify application health in Argo CD.
+7. Confirm ingress, certificates, metrics, dashboards, and alerts.
+
+Do not commit kubeconfig files, private keys, cloud credentials, Terraform state, or plaintext secrets.
+
+## Design decisions
+
+- Git is the source of truth for the desired application state.
+- Helm separates packaging from environment-specific values.
+- Argo CD continuously reconciles the cluster and exposes drift.
+- Sealed Secrets allow encrypted secret manifests to be versioned without exposing plaintext values.
+- Monitoring is treated as part of the platform, not an afterthought.
+- Operational documentation is versioned beside the implementation.
+
+## Portfolio discussion points
+
+When presenting this project, be prepared to explain:
+
+- How Argo CD detects and corrects drift.
+- How a failed deployment is diagnosed and rolled back.
+- How Kubernetes networking connects ingress, services, and pods.
+- How secrets are protected throughout the Git workflow.
+- How Terraform state should be managed by a team.
+- Which availability, security, and observability trade-offs would change in production.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Operations runbook](docs/runbook.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Security](docs/security.md)
+- [Security policy](SECURITY.md)
+
+## Disclaimer
+
+This is a portfolio and learning project. Environment-specific values, credentials, domains, and operational controls must be reviewed before using the configuration in a production environment.
