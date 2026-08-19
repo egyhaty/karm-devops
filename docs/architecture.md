@@ -1,59 +1,45 @@
-# Architecture
+# Platform Architecture
 
-## Objective
+## Purpose
 
-Karm DevOps demonstrates an end-to-end platform workflow for deploying and operating containerized workloads on Kubernetes. The design emphasizes repeatability, GitOps reconciliation, secure configuration, TLS automation, and observability.
+`karm-devops` is a Kubernetes platform organized as a single repository. Git stores the desired state, GitHub Actions validates changes, and Argo CD reconciles approved changes into the cluster.
 
 ## Components
 
-| Component | Responsibility |
-|---|---|
-| Terraform | Provisions repeatable infrastructure and manages declared resources |
-| Kubernetes | Schedules and runs application workloads |
-| Helm | Packages applications and manages configurable deployment values |
-| Argo CD | Reconciles Git state with cluster state and reports drift |
-| Traefik | Handles ingress routing into the cluster |
-| cert-manager | Automates certificate requests and renewal |
-| Sealed Secrets | Stores encrypted secret manifests in Git |
-| Prometheus | Collects platform and workload metrics |
-| Grafana | Provides dashboards for investigation and trends |
-| Alertmanager | Groups and routes alerts |
+| Layer | Components | Responsibility |
+|---|---|---|
+| Infrastructure | Terraform | Reproducible infrastructure definitions and validation. |
+| Packaging | Helm | Reusable Kubernetes templates and values. |
+| GitOps CD | Argo CD | Reconcile Git state with cluster state. |
+| Application | Go, Node.js | Workloads deployed through Argo CD child applications. |
+| Edge | Traefik, MetalLB | Ingress routing and load-balancer IP allocation. |
+| TLS | cert-manager | Certificate issuance and renewal. |
+| Secrets | Sealed Secrets | Encrypted secret manifests stored in Git. |
+| Observability | Monitoring stack | Metrics, dashboards, and alerting. |
+| CI security | Gitleaks, Trivy | Secret detection and IaC configuration scanning. |
 
-## Request flow
+## GitOps flow
 
-1. A client resolves the application hostname through DNS.
-2. Traffic reaches the Traefik ingress controller.
-3. Traefik terminates or routes TLS according to the configured ingress resources.
-4. The Kubernetes Service selects healthy pods using labels.
-5. The application returns the response.
-6. Prometheus collects metrics and Alertmanager evaluates alert conditions.
+```text
+Pull Request
+  -> CI validation
+  -> code review and merge
+  -> Argo CD observes Git
+  -> child Applications reconcile
+  -> Kubernetes health checks
+  -> ingress and application verification
+```
 
-## Deployment flow
+`argocd/app-of-apps.yaml` is the root entry point. Its child applications are stored under `argocd/apps/`, including the Go and Node.js workloads, monitoring, Metrics Server, and Sealed Secrets.
 
-1. Changes are committed to Git.
-2. CI validates manifests, charts, Terraform, and security-sensitive content.
-3. Argo CD observes the desired state.
-4. Argo CD applies changes to the target cluster.
-5. Kubernetes performs the rollout according to the workload strategy.
-6. Health checks and monitoring determine whether the release is healthy.
+## CI controls
 
-## Reliability considerations
+The validation workflow has independent jobs for Terraform, Helm, YAML, Kubernetes schema, and security. Jobs run without cluster credentials. The security job runs Gitleaks as a pinned binary and Trivy from a pinned Action reference. Gitleaks blocks findings except for the narrowly scoped encrypted Sealed Secret and public-certificate paths defined in `.gitleaks.toml`.
 
-- Use readiness probes to prevent traffic from reaching unready pods.
-- Use liveness probes only when a restart is a safe recovery action.
-- Define resource requests and limits based on observed workload behavior.
-- Use PodDisruptionBudgets for workloads that need availability during voluntary disruption.
-- Keep deployments reversible through Git history and controlled rollout strategy.
-- Monitor both symptoms and saturation signals such as CPU, memory, restarts, and latency.
+## Operational boundaries
 
-## Security boundaries
+CI validates configuration; it does not provision infrastructure or deploy workloads. Deployment is performed by Argo CD after the Git change is approved and merged. This separation limits CI permissions and creates an auditable promotion path.
 
-- Git contains desired configuration, not plaintext credentials.
-- Kubernetes RBAC should follow least privilege.
-- Ingress and service exposure should be explicit.
-- Images should be scanned before publication.
-- Terraform state requires controlled access and secure storage.
+## Rollback
 
-## Production evolution
-
-For a larger production environment, the design should additionally address multi-node failure domains, remote Terraform state locking, image signing, policy enforcement, centralized logging, backup and restore testing, disaster recovery objectives, and controlled multi-environment promotion.
+The preferred rollback is a Git revert because Git remains the source of truth. Argo CD then reconciles the reverted desired state. For an urgent operational rollback, Argo CD can select a previous revision, followed by a Git revert so the repository and cluster converge again.
