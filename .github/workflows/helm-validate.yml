@@ -29,8 +29,11 @@ jobs:
       - name: Lint chart
         run: helm lint charts
 
-      - name: Render chart
-        run: helm template karm charts > rendered.yaml
+      - name: Render Go profile
+        run: helm template karm-go charts -f charts/values-go.yaml > rendered-go.yaml
+
+      - name: Render Node.js profile
+        run: helm template karm-node charts -f charts/values-node.yaml > rendered-node.yaml
 
       - name: Install kubeconform
         shell: bash
@@ -41,5 +44,8 @@ jobs:
           tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
           sudo install /tmp/kubeconform /usr/local/bin/kubeconform
 
-      - name: Validate rendered manifests
-        run: kubeconform -strict -summary -output text rendered.yaml
+      - name: Validate Go profile
+        run: kubeconform -strict -summary -output text rendered-go.yaml
+
+      - name: Validate Node.js profile
+        run: kubeconform -strict -summary -output text rendered-node.yaml
