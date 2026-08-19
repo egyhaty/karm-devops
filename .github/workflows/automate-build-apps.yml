@@ -1,167 +1,58 @@
-name: Automate Build Apps
+name: Build applications
 
 on:
+  pull_request:
+    branches:
+      - main
+      - ci-hardening
   push:
     branches:
       - main
-    paths:
-      - 'golang/**'
-      - 'nodejs/**'
-      - '.github/workflows/automate-build-apps.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-and-promote-main
-  cancel-in-progress: false
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  group: app-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  prepare:
-    if: github.actor != 'github-actions[bot]'
+  build-go:
+    name: Build Go application
     runs-on: ubuntu-latest
-    outputs:
-      SHORT_SHA: ${{ steps.vars.outputs.SHORT_SHA }}
-
+    timeout-minutes: 10
     steps:
-      - name: Prepare variables
-        id: vars
-        shell: bash
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: golang/go.mod
+          cache: true
+      - name: Build
+        working-directory: golang
+        run: go build ./...
 
-  build_nodejs:
-    if: github.actor != 'github-actions[bot]'
+  build-node:
+    name: Build Node.js application
     runs-on: ubuntu-latest
-    needs: prepare
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
-
-      - name: Docker metadata for NodeJS
-        id: meta_nodejs
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ secrets.USERNAME }}/nodejs
-          tags: |
-            type=raw,value=sha-${{ needs.prepare.outputs.SHORT_SHA }}
-            type=ref,event=branch
-            type=ref,event=tag
-
-      - name: Build and push NodeJS image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./nodejs
-          file: ./nodejs/Dockerfile
-          push: true
-          tags: ${{ steps.meta_nodejs.outputs.tags }}
-          labels: ${{ steps.meta_nodejs.outputs.labels }}
-          cache-from: type=gha,scope=nodejs
-          cache-to: type=gha,mode=max,scope=nodejs
-
-  build_golang:
-    if: github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    needs: prepare
-
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
-
-      - name: Docker metadata for GoLang
-        id: meta_golang
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ secrets.USERNAME }}/golang
-          tags: |
-            type=raw,value=sha-${{ needs.prepare.outputs.SHORT_SHA }}
-            type=ref,event=branch
-            type=ref,event=tag
-
-      - name: Build and push GoLang image
-        uses: docker/build-push-action@v7
-        with:
-          context: ./golang
-          file: ./golang/Dockerfile
-          push: true
-          tags: ${{ steps.meta_golang.outputs.tags }}
-          labels: ${{ steps.meta_golang.outputs.labels }}
-          cache-from: type=gha,scope=golang
-          cache-to: type=gha,mode=max,scope=golang
-
-  update_helm_values:
-    if: github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    needs:
-      - prepare
-      - build_nodejs
-      - build_golang
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Rebase on the latest main branch
-        shell: bash
-        run: git pull --rebase origin main
-
-      - name: Update Helm values files
-        shell: bash
-        env:
-          SHORT_SHA: ${{ needs.prepare.outputs.SHORT_SHA }}
-        run: |
-          for file in charts/values-node.yaml charts/values-go.yaml; do
-            sed -i -E \
-              "s|^([[:space:]]*tag:[[:space:]]*).*|\1\"sha-${SHORT_SHA}\"|" \
-              "$file"
-          done
-
-      - name: Show diff
-        shell: bash
-        run: git diff -- charts/values-node.yaml charts/values-go.yaml
-
-      - name: Commit and push updated Helm values
-        shell: bash
-        env:
-          SHORT_SHA: ${{ needs.prepare.outputs.SHORT_SHA }}
-        run: |
-          git config user.name "egyhaty"
-          git config user.email "egyhaty@gmail.com"
-
-          git add charts/values-node.yaml charts/values-go.yaml
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-
-          git commit -m "chore: update image tags to sha-${SHORT_SHA} [skip ci]"
-          git push origin HEAD:main
+          node-version-file: nodejs/.nvmrc
+          cache: npm
+          cache-dependency-path: nodejs/package-lock.json
+      - name: Install dependencies
+        working-directory: nodejs
+        run: npm ci
+      - name: Build
+        working-directory: nodejs
+        run: npm run build --if-present
+      - name: Test
+        working-directory: nodejs
+        run: npm test --if-present
