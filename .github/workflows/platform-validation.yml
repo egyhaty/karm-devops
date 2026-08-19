@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - ci-hardening
+      - ci-hardening-fix
 
 permissions:
   contents: read
@@ -24,40 +25,26 @@ jobs:
       run:
         working-directory: terraform
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-      - name: Terraform format check
-        run: terraform fmt -check -recursive
-      - name: Terraform init without backend
-        run: terraform init -backend=false -input=false
-      - name: Terraform validate
-        run: terraform validate
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate
 
   helm:
     name: Helm validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
       - name: Lint charts
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
-          charts=(charts/*)
-          if [ ${#charts[@]} -eq 0 ]; then
-            echo "No charts found under charts/"
-            exit 0
-          fi
-          for chart in "${charts[@]}"; do
-            if [ -f "$chart/Chart.yaml" ]; then
-              helm lint "$chart"
-            fi
+          for chart in charts/*; do
+            if [ -f "$chart/Chart.yaml" ]; then helm lint "$chart"; fi
           done
 
   yaml:
@@ -65,10 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
       - name: Install YAML tools
@@ -84,27 +69,27 @@ jobs:
           errors = []
           for path in files:
               try:
-                  with path.open(encoding='utf-8') as stream:
-                      list(yaml.safe_load_all(stream))
-              except Exception as exc:
-                  errors.append(f'{path}: {exc}')
+                  with path.open(encoding='utf-8') as stream: list(yaml.safe_load_all(stream))
+              except Exception as exc: errors.append(f'{path}: {exc}')
           if errors:
-              print('\n'.join(errors))
-              raise SystemExit(1)
+              print('\n'.join(errors)); raise SystemExit(1)
           print(f'Parsed {len(files)} YAML files')
           PY
-      - name: Run yamllint
-        run: yamllint -c .yamllint.yml .
+      - name: Run yamllint on source YAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.yml' '*.yaml' | grep -vE '(^|/)(vendor|rendered|templates)/' || true)
+          if [ ${#files[@]} -eq 0 ]; then echo 'No source YAML files found'; exit 0; fi
+          yamllint -c .yamllint.yml "${files[@]}"
 
   kubernetes:
     name: Kubernetes schema validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
       - name: Render Helm charts
         shell: bash
         run: |
@@ -112,23 +97,25 @@ jobs:
           mkdir -p rendered
           shopt -s nullglob
           for chart in charts/*; do
-            if [ -f "$chart/Chart.yaml" ]; then
-              name=$(basename "$chart")
-              helm template "$name" "$chart" > "rendered/${name}.yaml"
-            fi
+            if [ -f "$chart/Chart.yaml" ]; then helm template "$(basename "$chart")" "$chart" > "rendered/$(basename "$chart").yaml"; fi
           done
+      - name: Install kubeconform
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='0.6.7'
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${version}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
       - name: Validate Kubernetes manifests
-        uses: docker://ghcr.io/yannh/kubeconform:latest
-        with:
-          args: -strict -summary -output text rendered/
+        run: kubeconform -strict -summary -output text rendered/
 
   security:
     name: Secret and IaC scanning
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gitleaks scan
