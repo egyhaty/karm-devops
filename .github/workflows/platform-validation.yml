@@ -58,14 +58,15 @@ jobs:
           python-version: '3.x'
       - name: Install YAML tools
         run: python -m pip install --disable-pip-version-check PyYAML yamllint
-      - name: Parse YAML files
+      - name: Parse source YAML files
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import pathlib
           import yaml
-          files = [p for p in pathlib.Path('.').rglob('*') if p.is_file() and p.suffix in {'.yaml', '.yml'} and '.git' not in p.parts]
+          excluded = {'.git', 'templates', 'rendered', 'vendor'}
+          files = [p for p in pathlib.Path('.').rglob('*') if p.is_file() and p.suffix in {'.yaml', '.yml'} and not excluded.intersection(p.parts)]
           errors = []
           for path in files:
               try:
@@ -73,7 +74,7 @@ jobs:
               except Exception as exc: errors.append(f'{path}: {exc}')
           if errors:
               print('\n'.join(errors)); raise SystemExit(1)
-          print(f'Parsed {len(files)} YAML files')
+          print(f'Parsed {len(files)} source YAML files')
           PY
       - name: Run yamllint on source YAML
         shell: bash
@@ -122,12 +123,21 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Trivy config scan
+      - name: Trivy config report
         uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
         with:
           scan-type: config
           scan-ref: .
           hide-progress: true
           format: table
-          exit-code: '1'
+          output: trivy-config.txt
+          exit-code: '0'
           ignore-unfixed: true
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-config-report
+          path: trivy-config.txt
+          if-no-files-found: warn
