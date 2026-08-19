@@ -2,42 +2,44 @@ name: Helm validation
 
 on:
   pull_request:
-    paths:
-      - 'charts/**'
-      - '.github/workflows/helm-validate.yml'
   push:
     branches:
       - main
-    paths:
-      - 'charts/**'
-      - '.github/workflows/helm-validate.yml'
+      - ci-hardening
+      - ci-hardening-fix
+  workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: helm-validation-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  validate:
+  helm:
     name: Lint and render Helm releases
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Helm
+      - name: Install Helm
         uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
 
-      - name: Lint Go values
-        run: helm lint charts -f charts/values-go.yaml
+      - name: Lint chart
+        run: helm lint charts
 
-      - name: Render Go manifests
-        run: helm template golang charts -f charts/values-go.yaml > /dev/null
+      - name: Render chart
+        run: helm template karm charts > rendered.yaml
 
-      - name: Lint Node.js values
-        run: helm lint charts -f charts/values-node.yaml
+      - name: Install kubeconform
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='0.6.7'
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${version}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo install /tmp/kubeconform /usr/local/bin/kubeconform
 
-      - name: Render Node.js manifests
-        run: helm template nodejs charts -f charts/values-node.yaml > /dev/null
+      - name: Validate rendered manifests
+        run: kubeconform -strict -summary -output text rendered.yaml
