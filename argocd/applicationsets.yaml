@@ -1,37 +1,26 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: services-applicationset
+  name: applications
   namespace: argocd
 spec:
   generators:
     - list:
         elements:
-          - name: nodejs
-            valuesFile: values-node.yaml
-          - name: golang
-            valuesFile: values-go.yaml
-
+          - app: golang
+          - app: nodejs
   template:
     metadata:
-      name: '{{name}}'
+      name: '{{app}}'
     spec:
       project: default
-
       source:
-        repoURL: https://github.com/EmaLinuxawy/karm-devops.git
+        repoURL: https://github.com/egyhaty/karm-devops.git
         targetRevision: main
-        path: charts
-        helm:
-          releaseName: '{{name}}'
-          valueFiles:
-            - values.yaml
-            - '{{valuesFile}}'
-
+        path: '{{app}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: default
-
+        namespace: '{{app}}'
       syncPolicy:
         automated:
           prune: true

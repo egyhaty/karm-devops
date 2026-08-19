@@ -1,0 +1,8 @@
+title = "karm-devops Gitleaks configuration"
+
+[allowlist]
+description = "Encrypted Sealed Secrets and public certificate"
+paths = [
+  '''(?i)^sealed-secrets/.*\.ya?ml$''',
+  '''(?i)^pub-cert\.pem$'''
+]

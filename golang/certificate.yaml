@@ -1,12 +1,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: go-murabba-net
-  namespace: default
+  name: golang-tls
+  namespace: golang
 spec:
-  secretName: go-murabba-net-tls
-  dnsNames:
-    - go.murabba.net
+  secretName: golang-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  dnsNames:
+    - golang.example.com
