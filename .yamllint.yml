@@ -1,0 +1,10 @@
+---
+extends: relaxed
+rules:
+  document-start: disable
+  line-length: disable
+  truthy: disable
+  comments-indentation: disable
+  indentation: disable
+  braces: disable
+  brackets: disable

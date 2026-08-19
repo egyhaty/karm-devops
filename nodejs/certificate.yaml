@@ -1,12 +1,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: node-murabba-net
-  namespace: default
+  name: nodejs-tls
+  namespace: nodejs
 spec:
-  secretName: node-murabba-net-tls
-  dnsNames:
-    - node.murabba.net
+  secretName: nodejs-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  dnsNames:
+    - nodejs.example.com

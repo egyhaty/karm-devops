@@ -7,10 +7,10 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`argocd.murabba.net`)
+    - match: Host(`argocd.example.com`)
       kind: Rule
       services:
         - name: argocd-server
-          port: 80
+          port: 443
   tls:
-    secretName: argocd-murabba-net-tls
+    secretName: argocd-tls

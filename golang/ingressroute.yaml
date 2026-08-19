@@ -1,16 +1,16 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: go
-  namespace: default
+  name: golang
+  namespace: golang
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`go.murabba.net`)
+    - match: Host(`golang.example.com`)
       kind: Rule
       services:
         - name: golang
           port: 80
   tls:
-    secretName: go-murabba-net-tls
+    secretName: golang-tls
