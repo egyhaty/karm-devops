@@ -123,17 +123,16 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Trivy
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='0.58.2'
+          curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${version}/trivy_${version}_Linux-64bit.tar.gz" -o /tmp/trivy.tar.gz
+          tar -xzf /tmp/trivy.tar.gz -C /tmp trivy
+          sudo install /tmp/trivy /usr/local/bin/trivy
       - name: Trivy config report
-        uses: aquasecurity/trivy-action@0.28.0
-        continue-on-error: true
-        with:
-          scan-type: config
-          scan-ref: .
-          hide-progress: true
-          format: table
-          output: trivy-config.txt
-          exit-code: '0'
-          ignore-unfixed: true
+        run: trivy config --format table --output trivy-config.txt --exit-code 0 .
       - name: Upload Trivy report
         if: always()
         uses: actions/upload-artifact@v4
