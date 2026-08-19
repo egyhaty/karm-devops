@@ -73,7 +73,7 @@ jobs:
                   with path.open(encoding='utf-8') as stream: list(yaml.safe_load_all(stream))
               except Exception as exc: errors.append(f'{path}: {exc}')
           if errors:
-              print('\n'.join(errors)); raise SystemExit(1)
+              print('\\n'.join(errors)); raise SystemExit(1)
           print(f'Parsed {len(files)} source YAML files')
           PY
       - name: Run yamllint on source YAML
@@ -128,8 +128,9 @@ jobs:
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           sudo install /tmp/gitleaks /usr/local/bin/gitleaks
       - name: Gitleaks scan
-        run: gitleaks detect --source . --redact --exit-code 1
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --exit-code 1
       - name: Trivy config report
+        if: always()
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           scan-type: config
