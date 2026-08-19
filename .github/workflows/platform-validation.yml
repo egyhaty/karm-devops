@@ -120,11 +120,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gitleaks scan
-        uses: gitleaks/gitleaks-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f
+        uses: gitleaks/gitleaks-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Trivy config report
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           scan-type: config
           scan-ref: .
