@@ -1,20 +1,27 @@
-name: Build applications
+name: Application Validation
 
 on:
   pull_request:
     branches:
       - main
-      - ci-hardening
+    paths:
+      - 'golang/**'
+      - 'nodejs/**'
+      - '.github/workflows/application-validation.yml'
   push:
     branches:
       - main
+    paths:
+      - 'golang/**'
+      - 'nodejs/**'
+      - '.github/workflows/application-validation.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: app-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: application-validation-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

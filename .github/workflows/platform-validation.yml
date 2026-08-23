@@ -2,12 +2,34 @@ name: Platform Validation
 
 on:
   pull_request:
-  workflow_dispatch:
+    branches:
+      - main
+    paths:
+      - 'argocd/**'
+      - 'cert-manager/**'
+      - 'charts/**'
+      - 'monitoring/**'
+      - 'sealed-secrets/**'
+      - 'terraform/**'
+      - 'traefik/**'
+      - '.github/workflows/platform-validation.yml'
+      - '.gitleaks.toml'
+      - '.yamllint.yml'
   push:
     branches:
       - main
-      - ci-hardening
-      - ci-hardening-fix
+    paths:
+      - 'argocd/**'
+      - 'cert-manager/**'
+      - 'charts/**'
+      - 'monitoring/**'
+      - 'sealed-secrets/**'
+      - 'terraform/**'
+      - 'traefik/**'
+      - '.github/workflows/platform-validation.yml'
+      - '.gitleaks.toml'
+      - '.yamllint.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
