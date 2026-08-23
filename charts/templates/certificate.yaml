@@ -1,16 +1,16 @@
-{{- $certificate := .Values.certificate | default dict -}}
-{{- if ($certificate.enabled | default false) -}}
+{{- $certificate := (index .Values "certificate") | default dict -}}
+{{- if (index $certificate "enabled" | default false) -}}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ $certificate.name | quote }}
+  name: {{ index $certificate "name" | quote }}
   labels:
     {{- include "charts.labels" . | nindent 4 }}
 spec:
-  secretName: {{ $certificate.secretName | quote }}
+  secretName: {{ index $certificate "secretName" | quote }}
   issuerRef:
-    name: {{ $certificate.issuerRef.name | quote }}
-    kind: {{ $certificate.issuerRef.kind | default "ClusterIssuer" | quote }}
+    name: {{ index (index $certificate "issuerRef" | default dict) "name" | quote }}
+    kind: {{ index (index $certificate "issuerRef" | default dict) "kind" | default "ClusterIssuer" | quote }}
   dnsNames:
-    {{- toYaml ($certificate.dnsNames | default list) | nindent 4 }}
+    {{- toYaml (index $certificate "dnsNames" | default list) | nindent 4 }}
 {{- end }}
