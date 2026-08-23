@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/egyhaty/nodejs-app
-  tag: v1.0.0
+  tag: "sha-ce6d46b"
   pullPolicy: IfNotPresent
 
 service:
