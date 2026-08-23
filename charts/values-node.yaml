@@ -35,3 +35,13 @@ probes:
     path: /ready
     initialDelaySeconds: 5
     periodSeconds: 5
+
+certificate:
+  enabled: true
+  name: node-murabba-net
+  secretName: node-murabba-net-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - node.murabba.net
