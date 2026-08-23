@@ -43,6 +43,15 @@ ingress:
   hosts: []
   tls: []
 
+certificate:
+  enabled: false
+  name: ""
+  secretName: ""
+  issuerRef:
+    name: ""
+    kind: ClusterIssuer
+  dnsNames: []
+
 probes:
   startup:
     path: /healthz
