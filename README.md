@@ -91,8 +91,3 @@ Git commit -> CI validation -> Argo CD detects drift -> sync -> verify -> revert
 
 This branch is for validation and demonstration. It is not merged or deployed by this change.
 
-## Interview summary
-
-This project demonstrates infrastructure validation with Terraform, Kubernetes packaging with Helm, declarative delivery with Argo CD, platform routing with Traefik, TLS automation with cert-manager, on-premise load balancing with MetalLB, encrypted GitOps secrets with Sealed Secrets, and preventive CI security scanning with Gitleaks and Trivy.
-
-See [`docs/architecture.md`](docs/architecture.md) and [`docs/interview-guide.md`](docs/interview-guide.md).
