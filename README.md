@@ -81,13 +81,4 @@ trivy config .
 - Trivy scans IaC configuration and produces an artifact report.
 - CI has read-only repository permissions and does not run `terraform apply`.
 
-## GitOps demonstration
-
-The branch includes a reversible Node.js replica-count change used to demonstrate the flow:
-
-```text
-Git commit -> CI validation -> Argo CD detects drift -> sync -> verify -> revert
-```
-
-This branch is for validation and demonstration. It is not merged or deployed by this change.
 
