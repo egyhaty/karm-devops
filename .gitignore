@@ -2,3 +2,13 @@ node_modules/
 */node_modules/
 golang/golang-app
 *.log
+
+# Terraform generated files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# Node dependencies
+node_modules/
