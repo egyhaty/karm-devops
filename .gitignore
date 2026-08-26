@@ -12,3 +12,11 @@ golang/golang-app
 
 # Node dependencies
 node_modules/
+
+# Ignore generated and sensitive files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+node_modules/
