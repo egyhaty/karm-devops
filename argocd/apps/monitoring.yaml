@@ -76,6 +76,22 @@ spec:
                       summary: "Application deployment has unavailable replicas"
                       description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has fewer available replicas than requested for more than 5 minutes."
 
+        kubeControllerManager:
+          enabled: false
+
+        kubeScheduler:
+          enabled: false
+
+        kubeEtcd:
+          enabled: false
+
+        defaultRules:
+          rules:
+            etcd: false
+            kubeControllerManager: false
+            kubeSchedulerAlerting: false
+            kubeSchedulerRecording: false
+
         prometheus:
           enabled: true
           prometheusSpec:
@@ -93,18 +109,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-kubeControllerManager:
-  enabled: false
-
-kubeScheduler:
-  enabled: false
-
-kubeEtcd:
-  enabled: false
-
-defaultRules:
-  rules:
-    etcd: false
-    kubeControllerManager: false
-    kubeSchedulerAlerting: false
-    kubeSchedulerRecording: false
