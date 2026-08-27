@@ -1,14 +1,17 @@
-FROM node:25-alpine3.22
+FROM node:22-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci --omit=dev && npm cache clean --force
 
-COPY . .
+COPY --chown=node:node . .
 
-ENV APP_VERSION=25.3.22
+ENV NODE_ENV=production
+ENV APP_VERSION=dev
+
+USER node
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "index.js"]
