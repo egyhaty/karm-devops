@@ -10,7 +10,7 @@ COPY --chown=node:node . .
 ENV NODE_ENV=production
 ENV APP_VERSION=dev
 
-USER node
+USER 1000:1000
 
 EXPOSE 3000
 
