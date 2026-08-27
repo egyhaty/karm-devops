@@ -43,6 +43,9 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-configmap
+          env:
+            - name: APP_VERSION
+              value: {{ .Values.image.tag | quote }}
           startupProbe:
             httpGet:
               path: {{ .Values.probes.startup.path }}
