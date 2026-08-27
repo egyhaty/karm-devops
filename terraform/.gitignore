@@ -25,3 +25,6 @@ override.tf.json
 # CLI configuration
 .terraformrc
 terraform.rc
+*.tfstate
+*.tfstate.*
+.terraform/
