@@ -5,3 +5,4 @@ metadata:
   namespace: argocd
 data:
   server.insecure: "true"
+  redis.server: argocd-redis-ha-haproxy:6379

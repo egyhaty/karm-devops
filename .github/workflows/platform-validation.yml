@@ -12,6 +12,11 @@ on:
       - 'sealed-secrets/**'
       - 'terraform/**'
       - 'traefik/**'
+      - 'networking/**'
+      - 'infrastructure/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/platform-validation.yml'
       - '.gitleaks.toml'
       - '.yamllint.yml'
@@ -26,6 +31,11 @@ on:
       - 'sealed-secrets/**'
       - 'terraform/**'
       - 'traefik/**'
+      - 'networking/**'
+      - 'infrastructure/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'README.md'
       - '.github/workflows/platform-validation.yml'
       - '.gitleaks.toml'
       - '.yamllint.yml'
@@ -47,7 +57,7 @@ jobs:
       run:
         working-directory: terraform
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: hashicorp/setup-terraform@v3
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false -input=false
@@ -58,46 +68,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: azure/setup-helm@v4
-      - name: Lint charts
-        shell: bash
+        with:
+          version: v3.19.0
+      - name: Lint application values
         run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for chart in charts/*; do
-            if [ -f "$chart/Chart.yaml" ]; then helm lint "$chart"; fi
-          done
+          helm lint charts -f charts/values-go.yaml
+          helm lint charts -f charts/values-node.yaml
 
   yaml:
     name: YAML validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.x'
       - name: Install YAML tools
         run: python -m pip install --disable-pip-version-check PyYAML yamllint
-      - name: Parse source YAML files
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import pathlib
-          import yaml
-          excluded = {'.git', 'templates', 'rendered', 'vendor'}
-          files = [p for p in pathlib.Path('.').rglob('*') if p.is_file() and p.suffix in {'.yaml', '.yml'} and not excluded.intersection(p.parts)]
-          errors = []
-          for path in files:
-              try:
-                  with path.open(encoding='utf-8') as stream: list(yaml.safe_load_all(stream))
-              except Exception as exc: errors.append(f'{path}: {exc}')
-          if errors:
-              print('\\n'.join(errors)); raise SystemExit(1)
-          print(f'Parsed {len(files)} source YAML files')
-          PY
+      - name: Check YAML, topology, and availability settings
+        run: python scripts/validate-platform.py
       - name: Run yamllint on source YAML
         shell: bash
         run: |
@@ -111,17 +103,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: azure/setup-helm@v4
-      - name: Render Helm charts
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p rendered
-          shopt -s nullglob
-          for chart in charts/*; do
-            if [ -f "$chart/Chart.yaml" ]; then helm template "$(basename "$chart")" "$chart" > "rendered/$(basename "$chart").yaml"; fi
-          done
+        with:
+          version: v3.19.0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - run: python -m pip install --disable-pip-version-check PyYAML
+      - name: Render workloads and export upstream CRD schemas
+        run: bash scripts/render-platform.sh
       - name: Install kubeconform
         shell: bash
         run: |
@@ -131,14 +122,27 @@ jobs:
           tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
           sudo install /tmp/kubeconform /usr/local/bin/kubeconform
       - name: Validate Kubernetes manifests
-        run: kubeconform -strict -summary -output text rendered/
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubeconform -strict -summary -kubernetes-version 1.30.14 \
+            -schema-location default \
+            -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            rendered/
+          mapfile -t files < <(git ls-files '*.yaml' | grep -E '^(argocd/apps/|cert-manager/|monitoring/|networking/metallb/|networking/policies/|sealed-secrets/|traefik/)' | grep -v '/values.yaml$')
+          kubeconform -strict -summary -kubernetes-version 1.30.14 \
+            -schema-location default \
+            -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            "${files[@]}"
+      - name: Shell script syntax
+        run: bash -n scripts/bootstrap-node.sh scripts/render-platform.sh scripts/use-local-control-plane-api.sh
 
   security:
     name: Secret and IaC scanning
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Install Gitleaks

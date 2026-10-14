@@ -1,201 +1,79 @@
 # Karem On-Prem DevOps Platform
 
 [![Platform Validation](https://github.com/egyhaty/karm-devops/actions/workflows/platform-validation.yml/badge.svg)](https://github.com/egyhaty/karm-devops/actions/workflows/platform-validation.yml)
-[![Build Applications](https://github.com/egyhaty/karm-devops/actions/workflows/automate-build-apps.yml/badge.svg)](https://github.com/egyhaty/karm-devops/actions/workflows/automate-build-apps.yml)
 
-A hands-on, production-inspired single-node on-premises Kubernetes platform demonstrating infrastructure automation, GitOps delivery, CI/CD, secure secret management, ingress, TLS, load balancing, and observability.
+Three-node Kubernetes platform with GitOps delivery, Cilium networking, TLS ingress, and observability. The node inventory and pinned versions are in [infrastructure/nodes.yaml](infrastructure/nodes.yaml).
 
-## What This Project Demonstrates
+## Cluster
 
-- Kubernetes platform administration on on-premises infrastructure.
-- Infrastructure as Code with Terraform.
-- Helm-based application packaging and deployments.
-- GitOps application delivery with Argo CD.
-- Automated application build and validation workflows with GitHub Actions.
-- Container image publishing to Docker Hub.
-- Ingress routing with Traefik.
-- Bare-metal load balancing with MetalLB.
-- TLS automation with cert-manager.
-- Secret encryption and delivery with Sealed Secrets.
-- Monitoring and alerting with Prometheus, Grafana, Alertmanager, node-exporter, and kube-state-metrics.
-- Deployment of Go and Node.js sample applications.
+| Node | Address | Roles |
+| --- | --- | --- |
+| devops | 66.11.126.178 | Control plane, worker |
+| devops-worker-prox4 | 66.11.126.181 | Control plane, worker |
+| devops-control-prox4 | 66.11.126.182 | Control plane, worker |
 
-## Architecture
+The shared ingress address is **66.11.126.179**. Kubernetes API clients use `https://66.11.126.179:6443`. Node addresses are distinct from the shared service address. The former node and ingress addresses are no longer assigned to this platform.
 
-```mermaid
-flowchart LR
-    Dev[Developer] --> Git[GitHub Repository]
-    Git --> CI[GitHub Actions]
-    CI --> Hub[Docker Hub]
-    Git --> Argo[Argo CD]
-    Argo --> K8s[Single-node Kubernetes]
-    Hub --> K8s
-    K8s --> MetalLB[MetalLB]
-    MetalLB --> Traefik[Traefik Ingress]
-    Traefik --> Apps[Go and Node.js applications]
-    K8s --> Cert[cert-manager]
-    K8s --> Secrets[Sealed Secrets]
-    K8s --> Monitoring[Prometheus and Grafana]
-    Monitoring --> Alert[Alertmanager]
-```
+Kubernetes v1.30.14 uses three stacked etcd members. Cilium 1.18.14 replaces Flannel, with cluster-pool IPAM `10.245.0.0/16`, VXLAN port 8473, and kube-proxy retained. Cilium and kubelets bootstrap through their local control-plane API to avoid depending on ingress before networking is ready. See [architecture](docs/architecture.md).
 
-## Platform Components
+## Components and ownership
 
-| Area | Components |
-| --- | --- |
-| Cluster | Kubernetes, CoreDNS, kube-proxy, kube-flannel, metrics-server |
-| GitOps | Argo CD |
-| Packaging | Helm |
-| Infrastructure | Terraform |
-| Ingress | Traefik |
-| Load balancing | MetalLB |
-| TLS | cert-manager |
-| Secrets | Sealed Secrets |
-| Observability | Prometheus, Grafana, Alertmanager, node-exporter, kube-state-metrics |
-| Applications | Go and Node.js |
-| Container registry | Docker Hub |
-| Automation | GitHub Actions |
+| Component | Configuration | Owner |
+| --- | --- | --- |
+| Cilium | networking/cilium/values.yaml | Terraform Helm release |
+| MetalLB allocation | networking/metallb/address-pool.yaml | Terraform |
+| Traefik: three replicas, API health checks | traefik/values.yaml | Terraform Helm release |
+| Argo CD HA profile | argocd/ha/ | Argo CD application |
+| Go and Node.js workloads | charts/ | Argo CD |
+| Application network policies | networking/policies/ | Argo CD |
+| Monitoring and certificates | monitoring/, cert-manager/ | Argo CD |
 
-## Repository Structure
+Argo CD uses two server replicas, two repository servers, and three Redis HA instances with three HAProxy instances. Its upstream HA profile retains single controller, Dex, ApplicationSet and notification replicas. Runtime authentication secrets are excluded from the HA installation manifests.
 
-```text
-.
-├── .github/workflows/       # CI validation and application build workflows
-├── argocd/                  # Argo CD applications and GitOps configuration
-├── cert-manager/            # Certificate and issuer configuration
-├── charts/                  # Helm charts
-├── docs/                    # Supporting documentation
-├── golang/                  # Go application manifests/source
-├── monitoring/              # Prometheus, Grafana, and alerting configuration
-├── nodejs/                  # Node.js application manifests/source
-├── sealed-secrets/          # Sealed Secrets configuration
-├── terraform/               # Infrastructure as Code
-├── traefik/                 # Traefik configuration
-├── .gitleaks.toml           # Secret scanning configuration
-├── .yamllint.yml            # YAML lint configuration
-├── SECURITY.md              # Security guidance
-└── README.md
-```
+## Access
 
-## Prerequisites
+- [Argo CD](https://argocd.murabba.net/)
+- [Grafana](https://grafana.murabba.net/)
+- [Prometheus](https://prometheus.murabba.net/) — protected by Basic Auth.
+- [Go application](https://go.murabba.net/)
+- [Node.js application](https://node.murabba.net/)
 
-- Access to the target Kubernetes cluster.
-- A working `kubectl` context with sufficient permissions.
-- Terraform 1.7.x or a compatible newer version.
-- Helm 3.x.
-- Docker and access to the `egyhaty` Docker Hub namespace, when building images.
-- Argo CD, cert-manager, MetalLB, Traefik, and Sealed Secrets installed when applying the related configuration.
+Passwords, kubeconfigs, join tokens and private keys must remain outside Git. Hubble is enabled internally; use an authenticated port-forward for access.
 
-Verify the local tools and cluster context:
+## Delivery and validation
+
+GitHub Actions builds images, tests their health, version and metrics endpoints, then publishes the tested images. Updating application image values creates a Git commit. Argo CD reconciles those values into deployments. Platform validation checks Terraform, both application Helm value sets, YAML, inventory consistency, rendered Kubernetes schemas, shell syntax, and secrets.
 
 ```bash
-terraform version
-helm version
-kubectl config current-context
-kubectl get nodes
-kubectl get pods -A
-```
-
-## Quick Start
-
-Clone the repository and inspect the configuration:
-
-```bash
-git clone https://github.com/egyhaty/karm-devops.git
-cd karm-devops
-```
-
-Validate Terraform and Helm configuration before applying changes:
-
-```bash
+python3 -m pip install PyYAML yamllint
+python3 scripts/validate-platform.py
+helm lint charts -f charts/values-go.yaml
+helm lint charts -f charts/values-node.yaml
+bash -n scripts/*.sh
+bash scripts/render-platform.sh
+terraform -chdir=terraform init -backend=false
 terraform -chdir=terraform fmt -check -recursive
 terraform -chdir=terraform validate
-helm lint ./charts/<chart-name>
 ```
 
-Apply infrastructure changes according to the relevant Terraform module documentation:
+Rendering requires Helm 3, kubectl, Python, curl and internet access. CI validates rendered resources against Kubernetes 1.30.14 schemas and version-pinned upstream CRDs. It does not require cluster credentials.
 
-```bash
-terraform -chdir=terraform init
-terraform -chdir=terraform plan
-terraform -chdir=terraform apply
-```
+## Operating the platform
 
-Deploy or synchronize workloads through Argo CD. The exact application manifests and values are located under `argocd/`, `charts/`, `golang/`, and `nodejs/`.
+Read [operations](docs/operations.md) before applying infrastructure changes. Existing live releases must be imported into Terraform state before planning; a fresh state does not describe an existing cluster. `scripts/bootstrap-node.sh` prepares a fresh Ubuntu node; it does not allocate addresses, install the control plane, or publish join credentials.
 
-> Replace placeholders such as `<chart-name>` with the actual chart directory. Do not commit kubeconfig files, private keys, passwords, or registry credentials.
+Application replica minimums are three, with hostname spreading and disruption budgets preserving two replicas during voluntary maintenance. Traefik also has three replicas and a disruption budget. These settings protect against individual node disruption; shared infrastructure and persistent data require separate recovery arrangements.
 
-## Delivery Flow
+## Current limits
 
-1. A change is committed and pushed to GitHub.
-2. GitHub Actions validates platform configuration and builds application images.
-3. Application images are published to Docker Hub using protected GitHub Secrets.
-4. Argo CD observes the desired state in Git and synchronizes the Kubernetes cluster.
-5. Traefik exposes application routes, while cert-manager manages certificates when configured.
-6. Prometheus collects metrics and Grafana and Alertmanager provide visibility and notifications.
+Prometheus, Grafana and Alertmanager remain single replicas. The current cluster has no default StorageClass, and monitoring data uses ephemeral volumes. Existing data was preserved during migration and archived before the change; deleting or recreating those pods can lose current data. Durable storage and tested off-cluster backups remain required work.
 
-## Security
+Kubernetes 1.30 is retained for this migration; upgrading it and checking component compatibility is a separate maintenance operation. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
 
-- Gitleaks configuration is included in `.gitleaks.toml`.
-- Sealed Secrets should be used for encrypted Kubernetes secret manifests.
-- `pub-cert.pem` must contain only a public certificate/key used to seal secrets.
-- Never commit the Sealed Secrets controller private key, kubeconfig files, cloud credentials, Docker Hub passwords, or API tokens.
-- Store Docker Hub and other credentials in GitHub Actions Secrets.
-- Run a secret scan before publishing changes:
+## Documentation
 
-```bash
-gitleaks detect --redact --verbose
-```
+- [Architecture](docs/architecture.md)
+- [Operations and migration](docs/operations.md)
+- [شرح المشروع بالعربي](docs/platform-explained-ar.md)
 
-If a credential is ever committed, revoke and rotate it immediately; deleting the file in a later commit is not sufficient.
-
-## Observability
-
-The monitoring stack provides cluster and workload visibility through:
-
-- Prometheus for metrics collection.
-- Grafana for dashboards.
-- Alertmanager for alert routing.
-- node-exporter for node metrics.
-- kube-state-metrics for Kubernetes object metrics.
-- metrics-server for resource metrics used by Kubernetes tooling.
-
-For stateful monitoring workloads, verify the storage and retention configuration for the target environment. This cluster currently has no default `StorageClass`, so persistence should be treated as an explicit configuration decision.
-
-## Current Scope and Limitations
-
-- The platform currently runs as a single-node on-premises Kubernetes cluster.
-- The node is a single point of failure; this is not a highly available control plane.
-- There is currently no default Kubernetes `StorageClass`.
-- Production use would require documented backup and restore procedures, persistent storage, high availability, access controls, disaster recovery, and tested upgrade procedures.
-
-## Validation
-
-The repository includes GitHub Actions workflows for platform validation and application builds. Before merging or applying changes, validate:
-
-```bash
-terraform fmt -check -recursive
-terraform validate
-helm lint ./charts/<chart-name>
-yamllint .
-gitleaks detect --redact --verbose
-```
-
-Use the workflow status badges at the top of this document to inspect the latest automated results.
-
-## Roadmap
-
-- Add a documented persistent storage solution and backup/restore procedure.
-- Add multi-node high availability as a separate environment.
-- Add policy checks and Kubernetes manifest schema validation.
-- Add automated image vulnerability scanning.
-- Add documented disaster recovery and upgrade runbooks.
-- Add screenshots or exported dashboards from the running lab environment.
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
-
-## Author
-
-Maintained by [@egyhaty](https://github.com/egyhaty).
+MIT License. Maintained by [@egyhaty](https://github.com/egyhaty).

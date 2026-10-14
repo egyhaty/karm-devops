@@ -1,0 +1,77 @@
+additionalArguments:
+- --api.dashboard=true
+- --entrypoints.web.address=:8000
+- --entrypoints.websecure.address=:8443
+- --providers.kubernetesingress=true
+- --providers.kubernetescrd=true
+deployment:
+  kind: Deployment
+  replicas: 3
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+topologySpreadConstraints:
+- maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: DoNotSchedule
+  labelSelector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+podSecurityContext:
+  fsGroup: 65532
+  runAsGroup: 65532
+  runAsNonRoot: true
+  runAsUser: 65532
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+ports:
+  web:
+    expose:
+      default: true
+    port: 8000
+  websecure:
+    expose:
+      default: true
+    port: 8443
+  kubeapi:
+    expose:
+      default: true
+    port: 6443
+    exposedPort: 6443
+    protocol: TCP
+service:
+  type: LoadBalancer
+  annotations:
+    metallb.io/loadBalancerIPs: 66.11.126.179
+providers:
+  file:
+    enabled: true
+    content:
+      tcp:
+        routers:
+          kubernetes-api:
+            entryPoints:
+            - kubeapi
+            rule: HostSNI(`*`)
+            priority: 100
+            service: kubernetes-api
+            tls:
+              passthrough: true
+        services:
+          kubernetes-api:
+            loadBalancer:
+              servers:
+              - address: 66.11.126.178:6443
+              - address: 66.11.126.181:6443
+              - address: 66.11.126.182:6443
+              healthCheck:
+                interval: 2s
+                timeout: 1s
+              serversTransport: kubernetes-api
+        serversTransports:
+          kubernetes-api:
+            dialTimeout: 2s

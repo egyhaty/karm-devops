@@ -1,0 +1,30 @@
+cluster:
+  name: karm-devops
+  kubernetesVersion: v1.30.14
+  apiEndpoint: https://66.11.126.179:6443
+  ingressAddress: 66.11.126.179
+  serviceCIDR: 10.96.0.0/12
+  ciliumPodCIDR: 10.245.0.0/16
+  ciliumVersion: 1.18.14
+nodes:
+  - name: devops
+    address: 66.11.126.178
+    vmid: 103
+    roles: [control-plane, worker]
+    cpu: 12
+    memoryMiB: 12288
+    diskGiB: 300
+  - name: devops-worker-prox4
+    address: 66.11.126.181
+    vmid: 205
+    roles: [control-plane, worker]
+    cpu: 4
+    memoryMiB: 8192
+    diskGiB: 100
+  - name: devops-control-prox4
+    address: 66.11.126.182
+    vmid: 206
+    roles: [control-plane, worker]
+    cpu: 4
+    memoryMiB: 8192
+    diskGiB: 100

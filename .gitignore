@@ -20,3 +20,7 @@ node_modules/
 *.tfvars
 !*.tfvars.example
 node_modules/
+
+# Local validation output
+rendered/
+schemas/

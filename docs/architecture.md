@@ -1,45 +1,30 @@
 # Platform Architecture
 
-## Purpose
+Git stores desired configuration. GitHub Actions validates configuration and tests images; Argo CD reconciles application resources. Terraform manages Cilium, Traefik, MetalLB and other existing infrastructure releases through an explicitly maintained state.
 
-`karm-devops` is a Kubernetes platform organized as a single repository. Git stores the desired state, GitHub Actions validates changes, and Argo CD reconciles approved changes into the cluster.
-
-## Components
-
-| Layer | Components | Responsibility |
-|---|---|---|
-| Infrastructure | Terraform | Reproducible infrastructure definitions and validation. |
-| Packaging | Helm | Reusable Kubernetes templates and values. |
-| GitOps CD | Argo CD | Reconcile Git state with cluster state. |
-| Application | Go, Node.js | Workloads deployed through Argo CD child applications. |
-| Edge | Traefik, MetalLB | Ingress routing and load-balancer IP allocation. |
-| TLS | cert-manager | Certificate issuance and renewal. |
-| Secrets | Sealed Secrets | Encrypted secret manifests stored in Git. |
-| Observability | Monitoring stack | Metrics, dashboards, and alerting. |
-| CI security | Gitleaks, Trivy | Secret detection and IaC configuration scanning. |
-
-## GitOps flow
-
-```text
-Pull Request
-  -> CI validation
-  -> code review and merge
-  -> Argo CD observes Git
-  -> child Applications reconcile
-  -> Kubernetes health checks
-  -> ingress and application verification
+```mermaid
+flowchart LR
+  Git[Git repository] --> CI[Validate, build, test]
+  CI --> Registry[Container registry]
+  CI --> Values[Image values commit]
+  Values --> Argo[Argo CD]
+  Argo --> Apps[Application replicas across three nodes]
+  Registry --> Apps
+  Clients[HTTPS clients] --> VIP[MetalLB 66.11.126.179]
+  VIP --> Traefik[Three Traefik replicas]
+  Traefik --> Apps
+  Traefik --> UI[Argo CD and monitoring]
+  Traefik --> API[Three API servers on port 6443]
+  Cilium[Cilium overlay and policies] --> Apps
+  Prom[Prometheus] --> Nodes[Three node exporters and cluster metrics]
 ```
 
-`argocd/app-of-apps.yaml` is the root entry point. Its child applications are stored under `argocd/apps/`, including the Go and Node.js workloads, monitoring, Metrics Server, and Sealed Secrets.
+Each node runs an API server, controller manager, scheduler, etcd member and application workloads. Three etcd members require two healthy members for quorum. Losing one member can preserve Kubernetes state availability; two-member loss cannot.
 
-## CI controls
+MetalLB advertises the shared service address. Traefik terminates public application TLS and forwards Kubernetes API TLS without termination. Its file-provider API backend lists all three node addresses and checks TCP health every two seconds. API TLS authentication and authorization remain with Kubernetes.
 
-The validation workflow has independent jobs for Terraform, Helm, YAML, Kubernetes schema, and security. Jobs run without cluster credentials. The security job runs Gitleaks as a pinned binary and Trivy from a pinned Action reference. Gitleaks blocks findings except for the narrowly scoped encrypted Sealed Secret and public-certificate paths defined in `.gitleaks.toml`.
+Cilium agents and operators contact their own node's API using `status.hostIP`. Kubelet configurations likewise use local APIs. This removes the bootstrap dependency on Traefik pods. Cilium allocates actual pod addresses from 10.245.0.0/16 independently of legacy node podCIDR metadata. Services retain 10.96.0.0/12. Kube-proxy handles Kubernetes Services.
 
-## Operational boundaries
+Application network policies allow ingress from Traefik, monitoring and peer workloads. Egress permits DNS and application peers; unrelated egress is denied. Hubble provides internal traffic visibility. Infrastructure namespaces retain upstream network policy settings.
 
-CI validates configuration; it does not provision infrastructure or deploy workloads. Deployment is performed by Argo CD after the Git change is approved and merged. This separation limits CI permissions and creates an auditable promotion path.
-
-## Rollback
-
-The preferred rollback is a Git revert because Git remains the source of truth. Argo CD then reconciles the reverted desired state. For an urgent operational rollback, Argo CD can select a previous revision, followed by a Git revert so the repository and cluster converge again.
+The Argo CD HA profile replicates HTTP servers, repository servers and Redis. Controller and identity components still follow upstream singleton settings. Monitoring has node exporters on all nodes but single stateful servers with ephemeral data. Replica counts and metrics visibility must not be confused with durable storage or complete failure-domain independence.

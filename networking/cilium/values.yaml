@@ -1,0 +1,36 @@
+k8sServiceHost: ''
+k8sServicePort: 6443
+kubeProxyReplacement: false
+routingMode: tunnel
+tunnelProtocol: vxlan
+tunnelPort: 8473
+ipam:
+  mode: cluster-pool
+  operator:
+    clusterPoolIPv4PodCIDRList:
+    - 10.245.0.0/16
+    clusterPoolIPv4MaskSize: 24
+operator:
+  replicas: 2
+  unmanagedPodWatcher:
+    restart: true
+  extraEnv: &id001
+  - name: KUBERNETES_SERVICE_HOST
+    valueFrom:
+      fieldRef:
+        fieldPath: status.hostIP
+  - name: KUBERNETES_SERVICE_PORT
+    value: '6443'
+cni:
+  customConf: false
+  uninstall: false
+policyEnforcementMode: default
+bpf:
+  hostLegacyRouting: true
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+extraEnv: *id001

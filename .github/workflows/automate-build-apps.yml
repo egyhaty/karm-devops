@@ -47,10 +47,32 @@ jobs:
         with:
           context: ./nodejs
           file: ./nodejs/Dockerfile
-          push: true
+          push: false
+          load: true
           tags: ${{ secrets.USERNAME }}/nodejs:sha-${{ needs.prepare.outputs.short_sha }}
           cache-from: type=gha,scope=nodejs
           cache-to: type=gha,mode=max,scope=nodejs
+      - name: Smoke test Node.js image
+        env:
+          IMAGE: ${{ secrets.USERNAME }}/nodejs:sha-${{ needs.prepare.outputs.short_sha }}
+          APP_TAG: sha-${{ needs.prepare.outputs.short_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f nodejs-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name nodejs-smoke -p 127.0.0.1:3000:3000 -e APP_VERSION="$APP_TAG" "$IMAGE"
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/healthz; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/healthz | grep -qx ok
+          curl -fsS http://127.0.0.1:3000/ | grep -Fx "version=$APP_TAG"
+          curl -fsS http://127.0.0.1:3000/metrics -o /tmp/metrics-3000.txt
+          grep -q '^http_requests_total' /tmp/metrics-3000.txt
+      - name: Publish tested Node.js image
+        env:
+          IMAGE: ${{ secrets.USERNAME }}/nodejs:sha-${{ needs.prepare.outputs.short_sha }}
+        run: docker push "$IMAGE"
 
   build-golang:
     runs-on: ubuntu-latest
@@ -70,10 +92,32 @@ jobs:
         with:
           context: ./golang
           file: ./golang/Dockerfile
-          push: true
+          push: false
+          load: true
           tags: ${{ secrets.USERNAME }}/golang:sha-${{ needs.prepare.outputs.short_sha }}
           cache-from: type=gha,scope=golang
           cache-to: type=gha,mode=max,scope=golang
+      - name: Smoke test Go image
+        env:
+          IMAGE: ${{ secrets.USERNAME }}/golang:sha-${{ needs.prepare.outputs.short_sha }}
+          APP_TAG: sha-${{ needs.prepare.outputs.short_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f golang-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name golang-smoke -p 127.0.0.1:8080:8080 -e APP_VERSION="$APP_TAG" "$IMAGE"
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8080/healthz; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/healthz | grep -qx ok
+          curl -fsS http://127.0.0.1:8080/ | grep -Fx "version=$APP_TAG"
+          curl -fsS http://127.0.0.1:8080/metrics -o /tmp/metrics-8080.txt
+          grep -q '^http_requests_total' /tmp/metrics-8080.txt
+      - name: Publish tested Go image
+        env:
+          IMAGE: ${{ secrets.USERNAME }}/golang:sha-${{ needs.prepare.outputs.short_sha }}
+        run: docker push "$IMAGE"
 
   update-helm-values:
     runs-on: ubuntu-latest
@@ -83,6 +127,7 @@ jobs:
       - build-golang
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -110,5 +155,10 @@ jobs:
             echo "No image tag changes to commit"
             exit 0
           fi
-          git commit -m "chore: update image tags to sha-${SHORT_SHA} [skip ci]"
+          git commit -m "chore: update image tags to sha-${SHORT_SHA}"
           git push origin HEAD:main
+      # Commits made with GITHUB_TOKEN do not trigger push workflows.
+      - name: Validate promoted values
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run platform-validation.yml --ref main

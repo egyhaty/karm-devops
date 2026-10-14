@@ -3,6 +3,15 @@ config:
 
 replicaCount: 3
 
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/instance: nodejs
+        app.kubernetes.io/name: nodejs
+
 image:
   repository: egyhaty/nodejs
   tag: "sha-72d5f72"
