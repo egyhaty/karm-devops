@@ -59,5 +59,6 @@ for name, filename in [("golang", "values-go.yaml"), ("nodejs", "values-node.yam
     spread = values["topologySpreadConstraints"][0]
     assert spread["topologyKey"] == "kubernetes.io/hostname"
     assert spread["maxSkew"] == 1
+    assert spread["matchLabelKeys"] == ["pod-template-hash"], "Spread each rollout independently"
     assert spread["labelSelector"]["matchLabels"]["app.kubernetes.io/instance"] == name
 print(f"Parsed {len(files)} YAML files; topology, addressing, and availability checks passed")
