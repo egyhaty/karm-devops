@@ -67,7 +67,7 @@ Application replica minimums are three, with hostname spreading and disruption b
 
 ## Current limits
 
-Longhorn provides the node-replicated StorageClass used by PVC-backed workloads on dedicated VM disks. Prometheus and Grafana persistence is now configured to use Longhorn PVCs; their existing `emptyDir` data was backed up locally before the migration and must be restored deliberately when PVCs are provisioned. The recovery archive is encrypted and manual; it is point-in-time, not a scheduled disaster-recovery service.
+Longhorn provides the node-replicated StorageClass used by PVC-backed workloads on dedicated VM disks. Prometheus, Grafana and Alertmanager are configured to use Longhorn PVCs; their existing `emptyDir` data was archived locally before migration and must be restored deliberately when the claims are provisioned. The recovery archive is encrypted and manual; it is point-in-time, not a scheduled disaster-recovery service.
 
 Kubernetes upgrades are performed one minor version at a time. Current nodes run 1.31.14; additional minor updates require coordinating Cilium and Longhorn compatibility first. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
 
