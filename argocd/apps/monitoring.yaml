@@ -38,6 +38,15 @@ spec:
             configSecret: alertmanager-monitoring-kube-prometheus-alertmanager
             secrets:
               - alertmanager-slack-webhook
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 2Gi
 
           config:
             global:
