@@ -24,3 +24,6 @@ node_modules/
 # Local validation output
 rendered/
 schemas/
+
+# Encrypted off-cluster backup recovery keys
+.backup-recovery/

@@ -9,6 +9,7 @@ on:
       - 'cert-manager/**'
       - 'charts/**'
       - 'monitoring/**'
+      - 'storage/**'
       - 'sealed-secrets/**'
       - 'terraform/**'
       - 'traefik/**'
@@ -28,6 +29,7 @@ on:
       - 'cert-manager/**'
       - 'charts/**'
       - 'monitoring/**'
+      - 'storage/**'
       - 'sealed-secrets/**'
       - 'terraform/**'
       - 'traefik/**'
@@ -135,7 +137,7 @@ jobs:
             -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             "${files[@]}"
       - name: Shell script syntax
-        run: bash -n scripts/bootstrap-node.sh scripts/render-platform.sh scripts/use-local-control-plane-api.sh
+        run: bash -n scripts/bootstrap-node.sh scripts/prepare-storage-node.sh scripts/render-platform.sh scripts/use-local-control-plane-api.sh
 
   security:
     name: Secret and IaC scanning

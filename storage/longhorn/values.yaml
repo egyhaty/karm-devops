@@ -1,0 +1,27 @@
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 3
+  reclaimPolicy: Retain
+  defaultDataLocality: best-effort
+  defaultFsType: ext4
+defaultSettings:
+  defaultDataPath: /var/lib/longhorn
+  defaultReplicaCount: '{"v1":"3","v2":"3"}'
+  replicaAutoBalance: best-effort
+  replicaSoftAntiAffinity: false
+  storageOverProvisioningPercentage: 100
+  storageMinimalAvailablePercentage: 15
+  storageReservedPercentageForDefaultDisk: 10
+  allowVolumeCreationWithDegradedAvailability: false
+  guaranteedInstanceManagerCPU: '{"v1":"10","v2":"10"}'
+  autoDeletePodWhenVolumeDetachedUnexpectedly: true
+longhornUI:
+  replicas: 2
+service:
+  ui:
+    type: ClusterIP
+metrics:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: monitoring

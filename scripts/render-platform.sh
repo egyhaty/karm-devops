@@ -12,9 +12,11 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo add jetstack https://charts.jetstack.io --force-update
 helm repo add metallb https://metallb.github.io/metallb --force-update
 helm repo add sealed-secrets https://bitnami.github.io/sealed-secrets --force-update
+helm repo add longhorn https://charts.longhorn.io --force-update
 helm repo update
 helm template cilium cilium/cilium --version 1.18.14 --namespace kube-system --include-crds -f networking/cilium/values.yaml > rendered/cilium.yaml
 helm template traefik traefik/traefik --version 41.1.1 --namespace traefik --kube-version 1.30.14 --api-versions policy/v1/PodDisruptionBudget --include-crds -f traefik/values.yaml > rendered/traefik.yaml
+helm template longhorn longhorn/longhorn --version 1.10.2 --namespace longhorn-system --kube-version 1.30.14 --include-crds -f storage/longhorn/values.yaml > rendered/longhorn.yaml
 kubectl kustomize argocd/ha > rendered/argocd-ha.yaml
 helm show crds prometheus-community/kube-prometheus-stack --version 87.4.0 > rendered/crds/prometheus.yaml
 helm template cert-manager jetstack/cert-manager --version v1.21.1 --namespace cert-manager --set crds.enabled=true --include-crds > rendered/crds/cert-manager.yaml

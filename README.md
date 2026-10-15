@@ -27,6 +27,7 @@ Kubernetes v1.30.14 uses three stacked etcd members. Cilium 1.18.14 replaces Fla
 | Go and Node.js workloads | charts/ | Argo CD |
 | Application network policies | networking/policies/ | Argo CD |
 | Monitoring and certificates | monitoring/, cert-manager/ | Argo CD |
+| Persistent volumes | storage/longhorn/ | Argo CD; three-way replicated across Kubernetes nodes |
 
 Argo CD uses two server replicas, two repository servers, and three Redis HA instances with three HAProxy instances. Its upstream HA profile retains single controller, Dex, ApplicationSet and notification replicas. Runtime authentication secrets are excluded from the HA installation manifests.
 
@@ -66,7 +67,7 @@ Application replica minimums are three, with hostname spreading and disruption b
 
 ## Current limits
 
-Prometheus, Grafana and Alertmanager remain single replicas. The current cluster has no default StorageClass, and monitoring data uses ephemeral volumes. Existing data was preserved during migration and archived before the change; deleting or recreating those pods can lose current data. Durable storage and tested off-cluster backups remain required work.
+Prometheus, Grafana and Alertmanager remain single replicas. Longhorn provides node-level replicated storage for PVC-backed workloads on dedicated VM disks. Monitoring history from before the storage migration is retained in the encrypted external backup; the backup is manual and point-in-time, not a scheduled disaster-recovery service.
 
 Kubernetes 1.30 is retained for this migration; upgrading it and checking component compatibility is a separate maintenance operation. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
 
@@ -75,5 +76,6 @@ Kubernetes 1.30 is retained for this migration; upgrading it and checking compon
 - [Architecture](docs/architecture.md)
 - [Operations and migration](docs/operations.md)
 - [شرح المشروع بالعربي](docs/platform-explained-ar.md)
+- [Storage and recovery](docs/storage-and-recovery.md)
 
 MIT License. Maintained by [@egyhaty](https://github.com/egyhaty).
