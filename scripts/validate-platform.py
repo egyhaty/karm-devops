@@ -61,6 +61,9 @@ assert grafana_persistence["storageClassName"] == "longhorn"
 prometheus_storage = monitoring["prometheus"]["prometheusSpec"]["storageSpec"]["volumeClaimTemplate"]
 assert prometheus_storage["spec"]["storageClassName"] == "longhorn"
 assert prometheus_storage["spec"]["resources"]["requests"]["storage"] == "10Gi"
+alertmanager_storage = monitoring["alertmanager"]["alertmanagerSpec"]["storage"]["volumeClaimTemplate"]
+assert alertmanager_storage["spec"]["storageClassName"] == "longhorn"
+assert alertmanager_storage["spec"]["resources"]["requests"]["storage"] == "2Gi"
 for name, filename in [("golang", "values-go.yaml"), ("nodejs", "values-node.yaml")]:
     values = read(f"charts/{filename}")
     minimum = values["scaling"]["min"]
