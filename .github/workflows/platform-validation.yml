@@ -127,12 +127,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubeconform -strict -summary -kubernetes-version 1.30.14 \
+          kubernetes_version="$(python3 -c 'import yaml; print(yaml.safe_load(open("infrastructure/nodes.yaml", encoding="utf-8"))["cluster"]["kubernetesVersion"].removeprefix("v"))')"
+          kubeconform -strict -summary -kubernetes-version "$kubernetes_version" \
             -schema-location default \
             -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             rendered/
           mapfile -t files < <(git ls-files '*.yaml' | grep -E '^(argocd/apps/|cert-manager/|monitoring/|networking/metallb/|networking/policies/|sealed-secrets/|traefik/)' | grep -v '/values.yaml$')
-          kubeconform -strict -summary -kubernetes-version 1.30.14 \
+          kubeconform -strict -summary -kubernetes-version "$kubernetes_version" \
             -schema-location default \
             -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             "${files[@]}"
