@@ -22,6 +22,9 @@ def read(relative):
 
 inventory = read("infrastructure/nodes.yaml")
 nodes = inventory["nodes"]
+cluster_version = inventory["cluster"]["kubernetesVersion"]
+assert cluster_version.startswith("v1."), "Use a fully pinned Kubernetes release"
+assert inventory["cluster"]["ciliumVersion"], "Cilium must be pinned in the cluster inventory"
 assert len(nodes) >= 3, "Three nodes are required for this topology"
 assert sum("control-plane" in node["roles"] for node in nodes) >= 3
 assert len({node["name"] for node in nodes}) == len(nodes), "Duplicate node names"
@@ -50,6 +53,17 @@ assert {server["address"] for server in api_backend["servers"]} == {
     f'{node["address"]}:6443' for node in nodes if "control-plane" in node["roles"]
 }
 assert api_backend["healthCheck"]["interval"] == "2s"
+monitoring_app = read("argocd/apps/monitoring.yaml")
+monitoring = yaml.safe_load(monitoring_app["spec"]["source"]["helm"]["values"])
+grafana_persistence = monitoring["grafana"]["persistence"]
+assert grafana_persistence["enabled"] is True
+assert grafana_persistence["storageClassName"] == "longhorn"
+prometheus_storage = monitoring["prometheus"]["prometheusSpec"]["storageSpec"]["volumeClaimTemplate"]
+assert prometheus_storage["spec"]["storageClassName"] == "longhorn"
+assert prometheus_storage["spec"]["resources"]["requests"]["storage"] == "10Gi"
+alertmanager_storage = monitoring["alertmanager"]["alertmanagerSpec"]["storage"]["volumeClaimTemplate"]
+assert alertmanager_storage["spec"]["storageClassName"] == "longhorn"
+assert alertmanager_storage["spec"]["resources"]["requests"]["storage"] == "2Gi"
 for name, filename in [("golang", "values-go.yaml"), ("nodejs", "values-node.yaml")]:
     values = read(f"charts/{filename}")
     minimum = values["scaling"]["min"]
