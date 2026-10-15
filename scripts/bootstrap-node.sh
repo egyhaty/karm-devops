@@ -2,7 +2,7 @@
 # Run as root inside a fresh Ubuntu 24.04 VM. Joining uses a separate, short-lived token.
 set -euo pipefail
 : "${NODE_IP:?Set NODE_IP to the address assigned to this node}"
-KUBERNETES_PACKAGE_VERSION="${KUBERNETES_PACKAGE_VERSION:-1.30.14-1.1}"
+KUBERNETES_PACKAGE_VERSION="${KUBERNETES_PACKAGE_VERSION:-1.31.14-1.1}"
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -qq
@@ -25,9 +25,9 @@ sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.to
 systemctl enable --now containerd
 systemctl restart containerd
 install -d -m 755 /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key |
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key |
   gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-printf 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /\n' > /etc/apt/sources.list.d/kubernetes.list
+printf 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /\n' > /etc/apt/sources.list.d/kubernetes.list
 apt-get update -qq
 apt-get install -y "kubelet=${KUBERNETES_PACKAGE_VERSION}" "kubeadm=${KUBERNETES_PACKAGE_VERSION}" "kubectl=${KUBERNETES_PACKAGE_VERSION}"
 apt-mark hold kubelet kubeadm kubectl
