@@ -17,6 +17,8 @@ defaultSettings:
   autoDeletePodWhenVolumeDetachedUnexpectedly: true
 longhornUI:
   replicas: 2
+preUpgradeChecker:
+  jobEnabled: false
 service:
   ui:
     type: ClusterIP
