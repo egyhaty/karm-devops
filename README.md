@@ -14,7 +14,7 @@ Three-node Kubernetes platform with GitOps delivery, Cilium networking, TLS ingr
 
 The shared ingress address is **66.11.126.179**. Kubernetes API clients use `https://66.11.126.179:6443`. Node addresses are distinct from the shared service address. The former node and ingress addresses are no longer assigned to this platform.
 
-Kubernetes v1.30.14 uses three stacked etcd members. Cilium 1.18.14 replaces Flannel, with cluster-pool IPAM `10.245.0.0/16`, VXLAN port 8473, and kube-proxy retained. Cilium and kubelets bootstrap through their local control-plane API to avoid depending on ingress before networking is ready. See [architecture](docs/architecture.md).
+Kubernetes v1.31.14 uses three stacked etcd members. Cilium 1.18.14 replaces Flannel, with cluster-pool IPAM `10.245.0.0/16`, VXLAN port 8473, and kube-proxy retained. Cilium and kubelets bootstrap through their local control-plane API to avoid depending on ingress before networking is ready. See [architecture](docs/architecture.md).
 
 ## Components and ownership
 
@@ -57,7 +57,7 @@ terraform -chdir=terraform fmt -check -recursive
 terraform -chdir=terraform validate
 ```
 
-Rendering requires Helm 3, kubectl, Python, curl and internet access. CI validates rendered resources against Kubernetes 1.30.14 schemas and version-pinned upstream CRDs. It does not require cluster credentials.
+Rendering requires Helm 3, kubectl, Python with PyYAML, curl and internet access. CI derives the Kubernetes schema version from `infrastructure/nodes.yaml`, renders the monitoring Helm chart using the values embedded in its Argo CD Application, and validates resources against pinned upstream CRDs. It does not require cluster credentials.
 
 ## Operating the platform
 
@@ -67,9 +67,9 @@ Application replica minimums are three, with hostname spreading and disruption b
 
 ## Current limits
 
-Prometheus, Grafana and Alertmanager remain single replicas on their existing ephemeral storage. Longhorn now provides a default node-replicated StorageClass for PVC-backed workloads on dedicated VM disks. Monitoring's saved data is preserved in the encrypted external archive; moving those live workloads onto PVCs is a separate migration so their history can be restored deliberately. The backup is manual and point-in-time, not a scheduled disaster-recovery service.
+Longhorn provides the node-replicated StorageClass used by PVC-backed workloads on dedicated VM disks. Prometheus and Grafana persistence is now configured to use Longhorn PVCs; their existing `emptyDir` data was backed up locally before the migration and must be restored deliberately when PVCs are provisioned. The recovery archive is encrypted and manual; it is point-in-time, not a scheduled disaster-recovery service.
 
-Kubernetes 1.30 is retained for this migration; upgrading it and checking component compatibility is a separate maintenance operation. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
+Kubernetes upgrades are performed one minor version at a time. Current nodes run 1.31.14; additional minor updates require coordinating Cilium and Longhorn compatibility first. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
 
 ## Documentation
 
