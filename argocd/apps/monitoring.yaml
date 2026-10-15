@@ -20,6 +20,13 @@ spec:
       values: |
         grafana:
           enabled: true
+          persistence:
+            enabled: true
+            type: pvc
+            storageClassName: longhorn
+            accessModes:
+              - ReadWriteOnce
+            size: 5Gi
           admin:
             existingSecret: grafana-admin-credentials
             userKey: admin-user
@@ -98,6 +105,15 @@ spec:
           prometheusSpec:
             retention: 7d
             retentionSize: 4GB
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: longhorn
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 10Gi
 
   destination:
     server: https://kubernetes.default.svc
