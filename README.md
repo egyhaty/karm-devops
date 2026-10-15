@@ -67,7 +67,7 @@ Application replica minimums are three, with hostname spreading and disruption b
 
 ## Current limits
 
-Prometheus, Grafana and Alertmanager remain single replicas. Longhorn provides node-level replicated storage for PVC-backed workloads on dedicated VM disks. Monitoring history from before the storage migration is retained in the encrypted external backup; the backup is manual and point-in-time, not a scheduled disaster-recovery service.
+Prometheus, Grafana and Alertmanager remain single replicas on their existing ephemeral storage. Longhorn now provides a default node-replicated StorageClass for PVC-backed workloads on dedicated VM disks. Monitoring's saved data is preserved in the encrypted external archive; moving those live workloads onto PVCs is a separate migration so their history can be restored deliberately. The backup is manual and point-in-time, not a scheduled disaster-recovery service.
 
 Kubernetes 1.30 is retained for this migration; upgrading it and checking component compatibility is a separate maintenance operation. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
 
