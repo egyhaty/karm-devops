@@ -27,4 +27,4 @@ Cilium agents and operators contact their own node's API using `status.hostIP`. 
 
 Application network policies allow ingress from Traefik, monitoring and peer workloads. Egress permits DNS and application peers; unrelated egress is denied. Hubble provides internal traffic visibility. Infrastructure namespaces retain upstream network policy settings.
 
-The Argo CD HA profile replicates HTTP servers, repository servers and Redis. Controller and identity components still follow upstream singleton settings. Monitoring has node exporters on all nodes but single stateful servers with ephemeral data. Replica counts and metrics visibility must not be confused with durable storage or complete failure-domain independence.
+The Argo CD HA profile replicates HTTP servers, repository servers and Redis. Controller and identity components still follow upstream singleton settings. Monitoring runs node exporters on all nodes; Prometheus, Grafana and Alertmanager use Longhorn persistent volumes replicated across Kubernetes nodes. Volume replication improves availability but is not an off-cluster backup or full failure-domain independence.
