@@ -36,7 +36,7 @@ Sealed Secrets يسمح نحفظ السر مشفرًا في Git، والـcontro
 
 node-exporter يجمع معلومات نظام كل نود. kube-state-metrics يعرض حالة موارد Kubernetes. Prometheus يسحب metrics ويقيّم قواعد التنبيه، Grafana يعرضها كلوحات، وAlertmanager يدير إرسال التنبيهات. metrics-server مختلف: يوفر معلومات CPU والذاكرة اللحظية للـHPA وkubectl top.
 
-Prometheus شايف ثلاث نودز، لكن ده مش معناه إنه نفسه ثلاث نسخ. حاليًا Prometheus وGrafana وAlertmanager نسخ منفردة، والتخزين ephemeral. البيانات الحالية اتحافظ عليها أثناء النقل واتاخدت لها نسخة احتياطية، لكن إعادة إنشاء Pod ممكن تضيع البيانات الحالية. الخطوة المطلوبة للتخزين الدائم محتاجة StorageClass وخطة نسخ واسترجاع مستقلة.
+Prometheus بيراقب النودز الثلاث، لكنه نفسه نسخة واحدة. Prometheus وGrafana وAlertmanager بيستخدموا PVCs على Longhorn، والـvolumes الثلاثة حاليًا Bound وHealthy ومكررة على عقد الكلاستر. النسخ الثلاث بتحسن توافر التخزين، لكنها مش بديل عن نسخة احتياطية خارج الكلاستر.
 
 Grafana بيحوّل غير المسجل لصفحة الدخول. Prometheus عليه Basic Auth و401 بدون بيانات الدخول طبيعي. نقيس صحة الخدمة منفصلة عن تسجيل الدخول، وما نلغي الحماية عشان الـURL يرجع 200.
 
