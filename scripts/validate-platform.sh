@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Validate source YAML, topology, addressing, and workload availability.
 set -euo pipefail
-ROOT="$(cd -- "$(dirname -- "\${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 command -v yq >/dev/null || { echo "Install mikefarah/yq v4" >&2; exit 1; }
 command -v jq >/dev/null || { echo "Install jq" >&2; exit 1; }
@@ -25,7 +25,7 @@ ipv4_to_int() {
   printf '%u\n' "$(((a << 24) | (b << 16) | (c << 8) | d))"
 }
 cidr_bounds() {
-  local cidr=$1 address=\${1%/*} prefix=\${1#*/}
+  local cidr=$1 address=${1%/*} prefix=${1#*/}
   [[ "$prefix" =~ ^[0-9]+$ ]] && ((prefix <= 32)) || fail "Invalid IPv4 CIDR: $cidr"
   local value mask start end
   value=$(ipv4_to_int "$address")
@@ -47,8 +47,8 @@ ip_in_cidr() {
 }
 
 mapfile -t yaml_files < <(git ls-files '*.yaml' '*.yml' | grep -vE '(^|/)(vendor|rendered|templates)/' || true)
-[[ \${#yaml_files[@]} -gt 0 ]] || fail "No source YAML files found"
-for file in "\${yaml_files[@]}"; do yq eval-all '.' "$file" >/dev/null || fail "Invalid YAML: $file"; done
+[[ ${#yaml_files[@]} -gt 0 ]] || fail "No source YAML files found"
+for file in "${yaml_files[@]}"; do yq eval-all '.' "$file" >/dev/null || fail "Invalid YAML: $file"; done
 
 inventory=infrastructure/nodes.yaml
 cilium_file=networking/cilium/values.yaml
@@ -69,31 +69,31 @@ require "$traefik_file" '.providers.file.content.tcp.services."kubernetes-api".l
 mapfile -t node_names < <(yq -r '.nodes[].name' "$inventory")
 mapfile -t node_addresses < <(yq -r '.nodes[].address' "$inventory")
 mapfile -t vmids < <(yq -r '.nodes[].vmid' "$inventory")
-unique_values "Node names" "\${node_names[@]}"
-unique_values "Node addresses" "\${node_addresses[@]}"
-unique_values "VM IDs" "\${vmids[@]}"
+unique_values "Node names" "${node_names[@]}"
+unique_values "Node addresses" "${node_addresses[@]}"
+unique_values "VM IDs" "${vmids[@]}"
 
 vip=$(yq -r '.cluster.ingressAddress' "$inventory")
 api_endpoint=$(yq -r '.cluster.apiEndpoint' "$inventory")
 [[ "$api_endpoint" == "https://$vip:6443" ]] || fail "API endpoint must use the shared ingress address"
-for address in "\${node_addresses[@]}"; do [[ "$address" != "$vip" ]] || fail "Ingress address cannot also be a node address"; done
+for address in "${node_addresses[@]}"; do [[ "$address" != "$vip" ]] || fail "Ingress address cannot also be a node address"; done
 
 pod_cidr=$(yq -r '.ipam.operator.clusterPoolIPv4PodCIDRList[0]' "$cilium_file")
 service_cidr=$(yq -r '.cluster.serviceCIDR' "$inventory")
 cidr_overlaps "$pod_cidr" "$service_cidr" && fail "Cilium pod CIDR overlaps the service CIDR"
-for address in "\${node_addresses[@]}"; do ip_in_cidr "$address" "$pod_cidr" && fail "Node address $address is inside the pod CIDR"; done
+for address in "${node_addresses[@]}"; do ip_in_cidr "$address" "$pod_cidr" && fail "Node address $address is inside the pod CIDR"; done
 
 mapfile -t pool_addresses < <(yq -r '.spec.addresses[]' networking/metallb/address-pool.yaml)
-[[ "\${pool_addresses[*]}" == "$vip/32" ]] || fail "MetalLB must advertise only the shared ingress address"
+[[ "${pool_addresses[*]}" == "$vip/32" ]] || fail "MetalLB must advertise only the shared ingress address"
 [[ "$(yq -r '.service.annotations."metallb.io/loadBalancerIPs"' "$traefik_file")" == "$vip" ]] || fail "Traefik must use the shared ingress address"
 mapfile -t expected_api_servers < <(
-  for index in "\${!node_names[@]}"; do
+  for index in "${!node_names[@]}"; do
     roles=$(yq -r ".nodes[$index].roles[]" "$inventory")
     if grep -qx 'control-plane' <<< "$roles"; then printf '%s:6443\n' "$(yq -r ".nodes[$index].address" "$inventory")"; fi
   done | LC_ALL=C sort
 )
 mapfile -t actual_api_servers < <(yq -r '.providers.file.content.tcp.services."kubernetes-api".loadBalancer.servers[].address' "$traefik_file" | LC_ALL=C sort)
-diff -u <(printf '%s\n' "\${expected_api_servers[@]}") <(printf '%s\n' "\${actual_api_servers[@]}") || fail "Traefik API backends must match all control-plane nodes"
+diff -u <(printf '%s\n' "${expected_api_servers[@]}") <(printf '%s\n' "${actual_api_servers[@]}") || fail "Traefik API backends must match all control-plane nodes"
 
 monitoring_values=$(mktemp)
 trap 'rm -f "$monitoring_values"' EXIT
@@ -115,4 +115,4 @@ for app in golang nodejs; do
   require "$values" '.topologySpreadConstraints[0].matchLabelKeys == ["pod-template-hash"]' "$app must spread each rollout independently"
   [[ "$(yq -r '.topologySpreadConstraints[0].labelSelector.matchLabels."app.kubernetes.io/instance"' "$values")" == "$app" ]] || fail "$app topology selector does not match its release"
 done
-printf 'Parsed %s YAML files; topology, networking, storage, and availability checks passed\n' "\${#yaml_files[@]}"
+printf 'Parsed %s YAML files; topology, networking, storage, and availability checks passed\n' "${#yaml_files[@]}"
