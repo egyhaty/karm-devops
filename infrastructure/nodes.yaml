@@ -1,6 +1,6 @@
 cluster:
   name: karm-devops
-  kubernetesVersion: v1.33.13
+  kubernetesVersion: v1.36.5
   apiEndpoint: https://66.11.126.179:6443
   ingressAddress: 66.11.126.179
   serviceCIDR: 10.96.0.0/12
