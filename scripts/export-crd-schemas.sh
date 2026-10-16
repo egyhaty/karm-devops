@@ -18,7 +18,7 @@ for source in "$@"; do
       version_name=$(jq -r '.name' <<< "$version")
       target="$destination/$group"
       mkdir -p "$target"
-      jq -c '.schema.openAPIV3Schema' <<< "$version" > "$target/\${kind,,}_\${version_name}.json"
+      jq -c '.schema.openAPIV3Schema' <<< "$version" > "$target/${kind,,}_${version_name}.json"
       ((count += 1))
     done < <(jq -c '.spec.versions[] | select(.schema.openAPIV3Schema != null)' <<< "$crd")
   done < <(yq eval-all -o=json -I=0 'select(.kind == "CustomResourceDefinition")' "$source")
