@@ -5,7 +5,7 @@ cluster:
   ingressAddress: 66.11.126.179
   serviceCIDR: 10.96.0.0/12
   ciliumPodCIDR: 10.245.0.0/16
-  ciliumVersion: 1.19.9
+  ciliumVersion: 1.20.2
 nodes:
   - name: devops
     address: 66.11.126.178
