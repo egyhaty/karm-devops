@@ -1,6 +1,6 @@
 # Platform architecture
 
-Git stores desired configuration. GitHub Actions validates configuration and tests application images; Argo CD reconciles application resources. Terraform manages selected infrastructure releases through an explicitly maintained state.
+Git stores desired configuration. GitHub Actions validates configuration, smoke-tests application images, publishes commit-tagged images with signed build provenance, and promotes them through Helm values; Argo CD reconciles application resources. Terraform manages selected infrastructure releases through an explicitly maintained state.
 
 ```mermaid
 flowchart LR
@@ -18,7 +18,7 @@ flowchart LR
   Cilium[Cilium overlay and policies] --> Apps
   Prom[Prometheus] --> Metrics[Application and node metrics]
   Apps --> PVC[Longhorn persistent volumes]
-  PVC --> Backup[Encrypted off-cluster backup]
+  PVC -. planned .-> Backup[Planned encrypted off-cluster backup]
   Backup -. restore drill .-> PVC
 ```
 
