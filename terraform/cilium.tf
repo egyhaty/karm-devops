@@ -3,7 +3,7 @@ resource "helm_release" "cilium" {
   namespace  = "kube-system"
   repository = "https://helm.cilium.io"
   chart      = "cilium"
-  version    = "1.19.9"
+  version    = "1.20.2"
 
   values  = [file("${path.module}/../networking/cilium/values.yaml")]
   wait    = true
