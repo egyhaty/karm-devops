@@ -15,6 +15,7 @@ defaultSettings:
   allowVolumeCreationWithDegradedAvailability: false
   guaranteedInstanceManagerCPU: '{"v1":"10","v2":"10"}'
   autoDeletePodWhenVolumeDetachedUnexpectedly: true
+  concurrentAutomaticEngineUpgradePerNodeLimit: "3"
 longhornUI:
   replicas: 2
 preUpgradeChecker:
