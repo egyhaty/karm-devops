@@ -37,6 +37,7 @@ jobs:
       id-token: write
       attestations: write
       artifact-metadata: write
+      packages: write
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -87,7 +88,7 @@ jobs:
       - name: Attest Node.js image provenance
         uses: actions/attest@v4.2.2
         with:
-          subject-name: ${{ secrets.USERNAME }}/nodejs
+          subject-name: docker.io/${{ secrets.USERNAME }}/nodejs
           subject-digest: ${{ steps.publish.outputs.digest }}
           push-to-registry: true
 
@@ -99,6 +100,7 @@ jobs:
       id-token: write
       attestations: write
       artifact-metadata: write
+      packages: write
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -149,7 +151,7 @@ jobs:
       - name: Attest Go image provenance
         uses: actions/attest@v4.2.2
         with:
-          subject-name: ${{ secrets.USERNAME }}/golang
+          subject-name: docker.io/${{ secrets.USERNAME }}/golang
           subject-digest: ${{ steps.publish.outputs.digest }}
           push-to-registry: true
 
