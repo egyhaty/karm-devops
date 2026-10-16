@@ -21,6 +21,13 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn-system
+  ignoreDifferences:
+    - group: ""
+      kind: ConfigMap
+      name: longhorn-default-resource
+      namespace: longhorn-system
+      jsonPointers:
+        - /data/default-resource.yaml
   syncPolicy:
     automated:
       prune: false
@@ -28,3 +35,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
