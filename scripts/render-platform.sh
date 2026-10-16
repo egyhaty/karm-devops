@@ -1,22 +1,9 @@
 #!/usr/bin/env bash
-# Requires Helm, kubectl, and Python with PyYAML. Does not access a live cluster.
+# Requires Helm, kubectl, yq and jq. Does not access a live cluster.
 set -euo pipefail
 mkdir -p rendered rendered/crds schemas
-KUBERNETES_VERSION="$(python3 - <<'PY'
-import yaml
-
-with open("infrastructure/nodes.yaml", encoding="utf-8") as source:
-    version = yaml.safe_load(source)["cluster"]["kubernetesVersion"]
-print(version.removeprefix("v"))
-PY
-)"
-CILIUM_VERSION="$(python3 - <<'PY'
-import yaml
-
-with open("infrastructure/nodes.yaml", encoding="utf-8") as source:
-    print(yaml.safe_load(source)["cluster"]["ciliumVersion"])
-PY
-)"
+KUBERNETES_VERSION="$(yq -r '.cluster.kubernetesVersion | sub("^v"; "")' infrastructure/nodes.yaml)"
+CILIUM_VERSION="$(yq -r '.cluster.ciliumVersion' infrastructure/nodes.yaml)"
 helm lint charts -f charts/values-go.yaml
 helm lint charts -f charts/values-node.yaml
 helm template golang charts -f charts/values-go.yaml > rendered/golang.yaml
@@ -34,19 +21,11 @@ helm template traefik traefik/traefik --version 41.1.1 --namespace traefik --kub
 helm template longhorn longhorn/longhorn --version 1.13.0 --namespace longhorn-system --kube-version "$KUBERNETES_VERSION" --include-crds -f storage/longhorn/values.yaml > rendered/longhorn.yaml
 kubectl kustomize argocd/ha > rendered/argocd-ha.yaml
 helm show crds prometheus-community/kube-prometheus-stack --version 87.4.0 > rendered/crds/prometheus.yaml
-python3 - <<'PY'
-import pathlib
-import yaml
-
-app = yaml.safe_load(pathlib.Path("argocd/apps/monitoring.yaml").read_text())
-pathlib.Path("/tmp/kube-prometheus-stack-values.yaml").write_text(
-    app["spec"]["source"]["helm"]["values"], encoding="utf-8"
-)
-PY
+yq -r '.spec.source.helm.values' argocd/apps/monitoring.yaml > /tmp/kube-prometheus-stack-values.yaml
 helm template monitoring prometheus-community/kube-prometheus-stack --version 87.4.0 --namespace monitoring --include-crds -f /tmp/kube-prometheus-stack-values.yaml > rendered/monitoring.yaml
 helm template cert-manager jetstack/cert-manager --version v1.21.1 --namespace cert-manager --set crds.enabled=true --include-crds > rendered/crds/cert-manager.yaml
 helm template metallb metallb/metallb --version 0.16.1 --namespace metallb-system --include-crds > rendered/crds/metallb.yaml
 helm show crds sealed-secrets/sealed-secrets --version 2.17.3 > rendered/crds/sealed-secrets.yaml
-python3 scripts/export-crd-schemas.py schemas rendered/*.yaml rendered/crds/*.yaml
+bash scripts/export-crd-schemas.sh schemas rendered/*.yaml rendered/crds/*.yaml
 curl -fsSL "https://raw.githubusercontent.com/kubernetes/kubernetes/v${KUBERNETES_VERSION}/api/openapi-spec/swagger.json" -o schemas/kubernetes-openapi.json
-python3 scripts/export-kubernetes-schema.py schemas/kubernetes-openapi.json schemas
+bash scripts/export-kubernetes-schema.sh schemas/kubernetes-openapi.json schemas
