@@ -14,7 +14,7 @@ Three-node Kubernetes platform with GitOps delivery, Cilium networking, TLS ingr
 
 The shared ingress address is **66.11.126.179**. Kubernetes API clients use `https://66.11.126.179:6443`. Node addresses are distinct from the shared service address. The former node and ingress addresses are no longer assigned to this platform.
 
-Kubernetes v1.32.13 uses three stacked etcd members. Cilium 1.18.14 replaces Flannel, with cluster-pool IPAM `10.245.0.0/16`, VXLAN port 8473, and kube-proxy retained. Cilium and kubelets bootstrap through their local control-plane API to avoid depending on ingress before networking is ready. See [architecture](docs/architecture.md).
+Kubernetes v1.32.13 uses three stacked etcd members. Cilium 1.19.9 replaces Flannel, with cluster-pool IPAM `10.245.0.0/16`, VXLAN port 8473, and kube-proxy retained. Cilium and kubelets bootstrap through their local control-plane API to avoid depending on ingress before networking is ready. See [architecture](docs/architecture.md).
 
 ## Components and ownership
 
