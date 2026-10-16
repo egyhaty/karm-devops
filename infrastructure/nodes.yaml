@@ -1,11 +1,11 @@
 cluster:
   name: karm-devops
-  kubernetesVersion: v1.32.13
+  kubernetesVersion: v1.33.13
   apiEndpoint: https://66.11.126.179:6443
   ingressAddress: 66.11.126.179
   serviceCIDR: 10.96.0.0/12
   ciliumPodCIDR: 10.245.0.0/16
-  ciliumVersion: 1.18.14
+  ciliumVersion: 1.19.9
 nodes:
   - name: devops
     address: 66.11.126.178
