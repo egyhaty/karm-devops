@@ -3,7 +3,7 @@
 [![Platform Validation](https://github.com/egyhaty/karm-devops/actions/workflows/platform-validation.yml/badge.svg)](https://github.com/egyhaty/karm-devops/actions/workflows/platform-validation.yml)
 [![Post-deployment checks](https://github.com/egyhaty/karm-devops/actions/workflows/post-deployment-check.yml/badge.svg)](https://github.com/egyhaty/karm-devops/actions/workflows/post-deployment-check.yml)
 
-A hands-on Kubernetes platform demonstrating infrastructure automation, GitOps, networking, persistent storage, observability and application delivery. Git is the source of truth for cluster configuration and application releases.
+A three-node Kubernetes lab for practicing infrastructure changes, GitOps delivery, networking, persistent storage and monitoring. Git holds the desired configuration; Argo CD applies it to the cluster.
 
 ## Platform
 
@@ -31,9 +31,9 @@ The architecture guide includes a traceable delivery example from source commit 
 
 ## Storage and recovery
 
-Longhorn replicates persistent volumes across Kubernetes nodes. A manually created encrypted migration archive was checksum-verified and stored off-cluster. Its contents and protected storage locations are not published here.
+Longhorn replicates persistent volumes across the Kubernetes nodes. A separate encrypted migration archive was checksum-checked and stored off-cluster; its decryption key is stored separately.
 
-Longhorn sends daily volume backups to an external SMB/CIFS target and retains the latest seven backups per volume. A canary backup was restored to an isolated volume and its contents verified. SMB encryption protects traffic in transit; the default StorageClass is unencrypted, so this setup does not claim encryption at rest. Target details stay outside public Git and CIFS credentials are stored as a SealedSecret. See [storage and recovery](docs/storage-and-recovery.md) for the recovery limits. Longhorn replicas are not a substitute for an off-cluster backup. Etcd snapshots protect Kubernetes state, not application volume contents.
+Longhorn sends daily volume backups to an external SMB/CIFS share and keeps the latest seven for each volume. I restored a test backup to a separate volume and checked its contents. SMB encrypts the connection; the default StorageClass is not encrypted, so backups are not encrypted at rest by Longhorn. The share address is configured on the cluster, and its credentials are stored as a SealedSecret. See [storage and recovery](docs/storage-and-recovery.md) for what each backup covers.
 
 ## Access
 

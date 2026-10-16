@@ -2,7 +2,7 @@
 
 ## CrashLoopBackOff
 
-Possible causes include application startup failure, invalid configuration, missing secrets, incompatible arguments, or resource limits.
+For `golang` or `nodejs` in `default`, check the current and previous container logs, then compare the pod's image and environment with the latest Helm values.
 
 ```bash
 kubectl describe pod <pod> -n <namespace>
@@ -10,11 +10,11 @@ kubectl logs <pod> -n <namespace> --previous
 kubectl get configmap,secret -n <namespace>
 ```
 
-Check the previous container logs, termination reason, environment references, mounted files, and recent image changes.
+Check the previous logs, termination reason, referenced ConfigMaps or Secrets, and the image tag Argo CD last applied.
 
 ## Pending pod
 
-Possible causes include insufficient CPU or memory, taints, node selectors, affinity rules, or unavailable storage.
+Check the scheduler events for the exact reason the pod is pending. In this cluster, also check node capacity, pod spread rules, and Longhorn volume status.
 
 ```bash
 kubectl describe pod <pod> -n <namespace>
@@ -22,7 +22,7 @@ kubectl get nodes --show-labels
 kubectl describe nodes
 ```
 
-Start with scheduler events. Do not blindly reduce resource requests without understanding the workload requirement.
+If the events point to resource requests, compare them with current node capacity before changing the requests.
 
 ## Service has no traffic
 
@@ -44,8 +44,6 @@ Review the diff before synchronizing. Determine whether the change is intentiona
 
 ## High restart rate
 
-Correlate restarts with deployments, probes, resource pressure, node events, and application logs. A liveness probe should not hide an application defect or create a restart loop.
+If a liveness probe keeps restarting a pod, check the app logs and probe response before changing its thresholds.
 
-## Investigation principle
-
-Move from symptom to evidence: event, object status, logs, metrics, recent change, root cause, recovery, and prevention. Record the commands and conclusions so the next incident is faster.
+For any issue, start with the affected object's status and recent events, then check its logs and the last Git change. Record the command that found the cause and the fix that worked so the next check is quicker.

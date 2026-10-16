@@ -1,52 +1,19 @@
-# Security Notes
+# Security
 
-## Repository safeguards
+This is a public Kubernetes lab. The repository contains the cluster manifests and encrypted SealedSecret resources, but it must not contain the keys or credentials needed to use them.
 
-Never commit:
+## What stays private
 
-- Private keys or certificates containing private key material.
-- Cloud access keys, tokens, passwords, or API credentials.
-- Kubeconfig files with embedded credentials.
-- Terraform state containing sensitive values.
-- Plaintext Kubernetes Secret manifests.
-- Production domains or internal endpoints unless intentionally public.
+- Sealed Secrets private key, kubeconfig credentials, SSH private keys, tokens, and passwords.
+- Terraform state and the key for the off-cluster migration archive.
+- The external backup share address and any host-specific access details.
 
-The repository should be checked with secret-scanning tools before pushing changes. A public certificate may be safe to publish, but it must be verified that it does not include a private key or unintended metadata.
+The CI workflow scans commits with Gitleaks and checks configuration with Trivy. The SealedSecret manifests in `sealed-secrets/` are encrypted for this cluster; they are not a replacement for protecting the controller's private key.
 
-## Kubernetes safeguards
+## Changes to the cluster
 
-- Use least-privilege RBAC.
-- Use dedicated service accounts for workloads.
-- Restrict pod-to-pod communication with NetworkPolicies where supported.
-- Define resource requests and limits.
-- Avoid privileged containers unless explicitly required.
-- Use read-only root filesystems where compatible.
-- Pin image versions instead of relying on mutable tags.
-- Keep ingress exposure limited to required routes.
+Argo CD applies the configuration from `main`. For platform-file pull requests, the validation workflow checks Terraform, Helm rendering, Kubernetes schemas, shell and YAML syntax, and secrets. Review changes that affect network access, storage, or credentials. Terraform manages selected platform releases; Argo CD manages applications and Kubernetes resources.
 
-## GitOps safeguards
+## If a credential is exposed
 
-- Protect the default branch.
-- Require pull-request review for production changes.
-- Run validation and secret scanning in CI.
-- Restrict who can synchronize production applications.
-- Review Argo CD diffs before synchronization.
-- Keep deployment credentials out of GitHub Actions logs.
-
-## Terraform safeguards
-
-- Use a secured remote backend with state locking.
-- Restrict access to state and encrypt it at rest.
-- Do not pass secrets through unprotected variables or command output.
-- Review plans before apply.
-- Use separate state and permissions for separate environments.
-
-## Incident response
-
-If a credential is committed:
-
-1. Revoke or rotate it immediately.
-2. Remove it from the active configuration.
-3. Review access logs for misuse.
-4. Rewrite Git history only after containment and coordination.
-5. Document the incident and add a preventive control.
+Rotate it first, then update the cluster secret and remove the exposed value from active configuration. Review the relevant access logs. Cleaning Git history is a follow-up; it does not make an exposed credential safe again.

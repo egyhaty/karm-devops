@@ -1,37 +1,21 @@
 # Contributing
 
-Thanks for your interest in improving Karem On-Prem DevOps Platform.
+Keep changes focused and describe their effect on the cluster. Do not include credentials, kubeconfigs, private keys, Terraform state, or unencrypted Kubernetes Secrets.
 
-## Workflow
+## Before opening a pull request
 
-1. Create a focused change.
-2. Keep infrastructure and application changes small and reviewable.
-3. Run the relevant Terraform, Helm, YAML, and secret checks locally.
-4. Explain operational impact in the pull request description.
-5. Never commit credentials, kubeconfig files, private keys, or unencrypted secrets.
-
-## Local Validation
+Run the checks relevant to your change. The platform workflow runs these on pull requests that touch platform files:
 
 ```bash
+bash scripts/validate-platform.sh
+bash -n scripts/*.sh
 terraform -chdir=terraform fmt -check -recursive
+terraform -chdir=terraform init -backend=false
 terraform -chdir=terraform validate
-yamllint .
-gitleaks detect --redact --verbose
+helm lint charts -f charts/values-go.yaml
+helm lint charts -f charts/values-node.yaml
 ```
 
-Run Helm lint against each chart that you change:
+The workflow also renders the Kubernetes resources, checks their schemas, and scans for secrets. Application image builds and container smoke tests currently run after changes are merged to `main`.
 
-```bash
-helm lint ./charts/<chart-name>
-```
-
-## Pull Requests
-
-Include:
-
-- What changed and why.
-- Which environments are affected.
-- How the change was tested.
-- Any migration, rollback, or security considerations.
-
-Changes to the live cluster should be performed through the documented GitOps workflow whenever possible.
+In the pull request, explain what changed, how you checked it, and any effect on storage, networking, or recovery. Route cluster changes through Git and Argo CD.

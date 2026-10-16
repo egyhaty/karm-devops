@@ -1,20 +1,15 @@
-# GitOps Demonstration
+# GitOps delivery walkthrough
 
-## Change
+## Application change
 
-The Node.js workload replica count is set to `2` in `charts/values-node.yaml`.
+Make a small change in `nodejs/` and open a pull request for review. The application image workflow currently runs when the change reaches `main`.
 
-## Demonstration sequence
+After merge, follow the run in [Build and Promote Applications](https://github.com/egyhaty/karm-devops/actions/workflows/automate-build-apps.yml):
 
-1. Open a Pull Request containing the values change.
-2. Confirm GitHub Actions passes all validation and security jobs.
-3. Merge only after review.
-4. Confirm Argo CD detects the new Git revision.
-5. Sync the Node.js child Application.
-6. Verify the Deployment rollout and two ready replicas.
-7. Verify the service through Traefik and check application health endpoints.
-8. Revert the commit to demonstrate rollback.
+1. The workflow builds the image and checks `/healthz`, `/`, and `/metrics` in a container.
+2. It publishes the image tagged with the source commit and attaches provenance.
+3. It updates the image tag in `charts/values-node.yaml` and `charts/values-go.yaml`.
+4. Argo CD notices the new values on `main` and rolls out the workloads.
+5. The post-deployment workflow checks the public app routes and, when configured, Prometheus targets.
 
-## Safety
-
-This repository change is validation-only until the Pull Request is merged and Argo CD is configured to sync it. No cluster command is executed by CI.
+To roll back, revert the source or values change in Git and let Argo CD apply the previous revision. The CI workflows do not run `kubectl`; Argo CD performs the cluster sync.

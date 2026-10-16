@@ -1,54 +1,20 @@
-# Go HTTP App
+# Go application
 
-This is a minimal Go HTTP service for DevOps practice.
+A small HTTP service used by the platform to exercise image builds, deployment, and Prometheus scraping.
 
-## What it does
+## Endpoints
 
-- `GET /` returns:
-  - `hello world`
-  - app version from `APP_VERSION` env var
-- `GET /metrics` exposes Prometheus metrics
-
-## Prerequisites
-
-- Go 1.22+
+- `GET /` returns `hello world` and the value of `APP_VERSION`.
+- `GET /healthz` is used by the Kubernetes probes and deployment checks.
+- `GET /metrics` exposes Prometheus metrics.
 
 ## Run locally
 
+Requires Go 1.22 or newer.
+
 ```bash
 cd golang
-APP_VERSION=1.0.0 PORT=8080 go run .
+APP_VERSION=dev PORT=8080 go run .
 ```
 
-## Verify
-
-In another terminal:
-
-```bash
-curl http://localhost:8080/
-curl http://localhost:8080/metrics
-```
-
-Expected from `/`:
-
-```text
-hello world
-version=1.0.0
-```
-
-## First DevOps Task
-
-Dockerize this app and run it as a container.
-
-Acceptance criteria:
-
-- Create a `Dockerfile` for this app.
-- Build image (example tag: `go-hello:1.0.0`).
-- Run container with:
-  - `APP_VERSION=1.0.0`
-  - host port mapped to container port
-- Verify:
-  - `curl http://localhost:<mapped-port>/`
-  - `curl http://localhost:<mapped-port>/metrics`
-
-Once this is verified, reach out and we will move to the next task.
+Then check `http://localhost:8080/healthz`, `/`, and `/metrics`. The Docker image and Kubernetes settings are in this directory and `charts/values-go.yaml`.

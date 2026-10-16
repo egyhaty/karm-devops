@@ -13,7 +13,7 @@ Import other pre-existing resources as needed using their provider-supported ide
 
 ## Platform migration
 
-The platform was migrated from a single-node Flannel setup to a three-node Kubernetes control plane using Cilium networking and highly available ingress. The process included protected control-plane and workload backups, staged node-by-node CNI migration, policy canaries, health-checked API routing, and verification of cluster and application readiness. Sensitive backup inventory and host-specific locations are maintained outside this public repository.
+The cluster started as a single-node Flannel setup. It now has three Kubernetes VMs, Cilium networking and a shared ingress/API address. The migration included node-by-node network changes, a policy test, API health checks, and application checks.
 
 ## Maintenance
 
@@ -29,10 +29,10 @@ kubectl get --raw=/readyz
 kubectl -n argocd get applications
 ```
 
-A worker name can remain unchanged after promotion; rely on node roles and inventory for audit. `scripts/use-local-control-plane-api.sh` requires a verified control-plane node and its allocated NODE_IP, and updates only that node's kubelet API address.
+The node inventory lists each VM's role. `scripts/use-local-control-plane-api.sh` points the selected node's kubelet at its local API server; set `NODE_IP` to that VM's address before running it.
 
 ## Recovery and rollback
 
-Use Git revert for application and policy changes, then verify Argo reconciliation. CNI migration rollback is a controlled node-by-node operation: restore backed-up CNI configuration, restore Flannel only when its network cannot conflict with active Cilium pods, and recreate workloads deliberately. Reapplying an old daemonset alone is insufficient. Restore etcd snapshots using the matching Kubernetes/etcd recovery procedure; never overwrite a healthy live member's data directory.
+Use Git revert for application and policy changes, then verify Argo reconciliation. CNI migration rollback is a controlled node-by-node operation: restore backed-up CNI configuration, restore Flannel only when its network cannot conflict with active Cilium pods, and recreate workloads deliberately. Reapplying an old daemonset alone is insufficient. For control-plane recovery, follow the etcd restore steps for the Kubernetes version in use and preserve the data directories of members that are still healthy.
 
 Grafana redirects to login normally. Prometheus returns HTTP 401 without Basic Auth. Verify service health separately from authentication and do not disable authentication to turn a monitoring probe green.

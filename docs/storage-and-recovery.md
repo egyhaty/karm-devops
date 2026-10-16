@@ -4,15 +4,15 @@
 
 Longhorn is installed by Argo CD from `argocd/apps/longhorn.yaml`; chart values are in `storage/longhorn/values.yaml`. Each Kubernetes VM contributes a dedicated virtual disk mounted in the guest at `/var/lib/longhorn`. The default StorageClass uses three replicas with hard node anti-affinity and a `Retain` reclaim policy.
 
-The Longhorn UI is internal. Prometheus scrapes Longhorn metrics through a ServiceMonitor. Replication improves availability across Kubernetes nodes, but it is not an off-cluster backup and does not make a single-replica application highly available.
+The Longhorn UI is internal, and Prometheus scrapes Longhorn through a ServiceMonitor. Replicas keep a volume available when a Kubernetes node fails. They do not protect against losing the cluster or its physical host; the SMB backups provide the off-cluster copy.
 
 ## Backup policy and current state
 
-A manually created, encrypted migration archive was checksum-verified and stored outside the cluster. It covered cluster recovery material and monitoring data at that point in time. The archive and its decryption key are kept outside this repository; their storage locations and contents are intentionally not published.
+A manually created encrypted migration archive was checksum-checked and stored outside the cluster. It contains a copy of the cluster recovery material and monitoring data from the migration. Its decryption key is stored separately from the archive.
 
-Longhorn 1.13 uses an external SMB/CIFS backup target. The endpoint is kept in the cluster's `longhorn-default-resource` ConfigMap and is intentionally omitted from public Git. Argo CD ignores only that target data field so Helm reconciliation preserves the operator-managed value. CIFS credentials are managed by the SealedSecret in `sealed-secrets/longhorn/backup-credentials.yaml`; the resulting Secret is in `longhorn-system`.
+Longhorn 1.13 writes to an external SMB/CIFS share. The share address is set in the cluster's `longhorn-default-resource` ConfigMap, so it does not appear in this public repo. Argo CD ignores that one ConfigMap field to preserve the setting. The encrypted credentials are in `sealed-secrets/longhorn/backup-credentials.yaml`; Sealed Secrets creates the usable Secret in `longhorn-system`.
 
-The `daily-backup` recurring job runs at 01:00 and retains the latest seven backups per volume. Its `default` group covers volumes without another recurring job. On 2026-10-16, a temporary 1 GiB canary volume was backed up to SMB, restored to a separate Longhorn volume, and its test file verified; the temporary Kubernetes resources and canary backup were then removed. SMB 3.1.1 encryption (`seal`) protects traffic in transit. The default StorageClass is unencrypted, so Longhorn does not encrypt these backups at rest; encryption on the external server was not verified. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure.
+The `daily-backup` job runs at 01:00 and keeps seven backups per volume. It applies to volumes that do not have another recurring job. I tested it with a temporary 1 GiB volume, restored that backup into a separate Longhorn volume, and checked the test file before removing the test resources. SMB 3.1.1 encrypts the transfer. The default StorageClass is unencrypted, so Longhorn does not encrypt the backup data at rest; I have not verified disk encryption on the backup server. Longhorn covers PVC data. The etcd snapshot covers Kubernetes control-plane state.
 
 ## Recovery flow
 
@@ -25,7 +25,7 @@ flowchart LR
   Transit --> Restore[Restore to isolated test volume]
   Restore --> Verify[Verify files and application startup]
   Git[Git desired state] --> Reconcile[Argo CD reconciliation]
-  Etcd[Protected etcd snapshot] --> ControlPlane[Version-matched control-plane recovery]
+  Etcd[etcd snapshot] --> ControlPlane[Kubernetes control-plane recovery]
 ```
 
-Never restore an etcd snapshot over a healthy cluster. Use the Kubernetes and etcd recovery procedure matching the snapshot version. Keep decryption material separate from the backup payload and test access through the documented recovery procedure.
+To restore app data, restore the Longhorn backup to a separate volume, check it, then attach it to the workload. For control-plane recovery, use the etcd restore procedure for the Kubernetes version that created the snapshot. The migration archive's key is kept separately from the archive.
