@@ -10,9 +10,9 @@ The Longhorn UI is internal. Prometheus scrapes Longhorn metrics through a Servi
 
 A manually created, encrypted migration archive was checksum-verified and stored outside the cluster. It covered cluster recovery material and monitoring data at that point in time. The archive and its decryption key are kept outside this repository; their storage locations and contents are intentionally not published.
 
-Longhorn currently has no configured backup target or recurring backup jobs. The available external destination is SMB-only, while Longhorn's native backup target requires an NFS export or an S3-compatible endpoint. No unsupported bridge or unverified schedule is configured. Enable NFS or an S3-compatible target on the backup service, then configure the endpoint and credentials through protected cluster secrets before declaring automated volume backups active.
+Longhorn 1.13 supports SMB/CIFS backup targets directly. The cluster currently has no configured target or recurring backup jobs because the reachable SMB endpoint, share name and credentials have not been provisioned in Longhorn. Keep credentials in a Kubernetes Secret in the `longhorn-system` namespace; keep secret values and the external share location out of Git.
 
-The intended policy is encrypted daily backups with a 7-day retention window, followed by a restore drill to a separate test volume. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure. A completed backup is not considered proven until a restore has been mounted and verified.
+The default StorageClass does not encrypt volumes. Longhorn encrypts backups made from encrypted volumes, so encrypted backup coverage requires the monitoring PVCs to use an encrypted StorageClass and the required node-side encryption support. The intended policy is daily backups with seven-day retention, followed by a restore drill to an isolated test volume. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure. A completed backup is not proven until a restore has been mounted and verified.
 
 ## Recovery flow
 
