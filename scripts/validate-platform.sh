@@ -112,7 +112,8 @@ for app in golang nodejs; do
   ((min_available >= 2 && min_available < minimum)) || fail "$app PDB would block voluntary maintenance"
   require "$values" '.topologySpreadConstraints[0].topologyKey == "kubernetes.io/hostname"' "$app must spread pods by hostname"
   require "$values" '.topologySpreadConstraints[0].maxSkew == 1' "$app pod spread maxSkew must be 1"
-  require "$values" '.topologySpreadConstraints[0].matchLabelKeys == ["pod-template-hash"]' "$app must spread each rollout independently"
+  mapfile -t rollout_keys < <(yq -r '.topologySpreadConstraints[0].matchLabelKeys[]' "$values")
+  [[ "${#rollout_keys[@]}" -eq 1 && "${rollout_keys[0]}" == "pod-template-hash" ]] || fail "$app must spread each rollout independently"
   [[ "$(yq -r '.topologySpreadConstraints[0].labelSelector.matchLabels."app.kubernetes.io/instance"' "$values")" == "$app" ]] || fail "$app topology selector does not match its release"
 done
 printf 'Parsed %s YAML files; topology, networking, storage, and availability checks passed\n' "${#yaml_files[@]}"
