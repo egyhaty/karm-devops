@@ -4,6 +4,8 @@ set -euo pipefail
 GO_URL="${GO_URL:-https://go.murabba.net}"
 NODE_URL="${NODE_URL:-https://node.murabba.net}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-https://prometheus.murabba.net}"
+metrics_file="$(mktemp)"
+trap 'rm -f "$metrics_file"' EXIT
 
 check_app() {
   local name="$1" base="$2" attempt
@@ -18,11 +20,11 @@ check_app() {
     sleep 20
   done
 
-  curl --fail --silent --show-error --max-time 10 "$base/metrics" |
-    grep -q '^http_requests_total' || {
-      echo "::error::$name metrics endpoint is missing the expected application metric"
-      return 1
-    }
+  curl --fail --silent --show-error --max-time 10 "$base/metrics" -o "$metrics_file"
+  grep -q '^http_requests_total' "$metrics_file" || {
+    echo "::error::$name metrics endpoint is missing the expected application metric"
+    return 1
+  }
   echo "$name public health and metrics routes are healthy"
 }
 
@@ -43,10 +45,10 @@ targets="$(curl --fail --silent --show-error --max-time 15 \
 
 jq -e '
   .status == "success" and
-  ([.data.activeTargets[]? | select((.scrapeUrl // "") | test("golang")) | select(.health == "up")] | length > 0) and
-  ([.data.activeTargets[]? | select((.scrapeUrl // "") | test("nodejs")) | select(.health == "up")] | length > 0)
+  ([.data.activeTargets[]? | select(.labels.job == "golang") | select(.health == "up")] | length > 0) and
+  ([.data.activeTargets[]? | select(.labels.job == "nodejs") | select(.health == "up")] | length > 0)
 ' <<<"$targets" >/dev/null || {
   echo "::error::Prometheus does not report healthy Go and Node.js application scrape targets"
   exit 1
 }
-echo "Prometheus reports healthy Go and Node.js scrape targets"
+echo "Prometheus reports healthy Go and Node.js application scrape targets"
