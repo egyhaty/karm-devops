@@ -11,21 +11,15 @@ terraform -chdir=terraform plan
 
 Import other pre-existing resources as needed using their provider-supported identifiers. Review the entire plan; do not apply a fresh state to recreate installed infrastructure. Argo CD manages application resources; avoid giving Terraform ownership of the same resources.
 
-## Migration performed
+## Platform migration
 
-1. Assigned node .178 and service VIP .179, updated DNS, API certificates and bootstrap configuration.
-2. Provisioned Ubuntu nodes .181 and .182 with the same authorized public SSH keys and joined a three-member control plane.
-3. Backed up etcd, Kubernetes configuration, Flannel resources and existing Prometheus/Grafana data.
-4. Staged Cilium with its separate pod pool and VXLAN port, migrated nodes individually, then verified every active non-host-network pod used the Cilium range.
-5. Changed Cilium bootstrap to local APIs and enabled network policies after a positive/negative traffic canary.
-6. Removed the Flannel daemonset. Legacy backup resources remain available for recovery.
-7. Added health-checked API routing, Traefik replicas and the Argo CD HA profile while preserving authentication secrets.
-
-Backup artifacts for this migration are under `/root/platform-upgrade-20261015` on .178. They contain sensitive Kubernetes configuration and must remain root-readable only. Copy backups to protected off-cluster storage and test restoration independently.
+The platform was migrated from a single-node Flannel setup to a three-node Kubernetes control plane using Cilium networking and highly available ingress. The process included protected control-plane and workload backups, staged node-by-node CNI migration, policy canaries, health-checked API routing, and verification of cluster and application readiness. Sensitive backup inventory and host-specific locations are maintained outside this public repository.
 
 ## Maintenance
 
-Current platform versions are Kubernetes 1.36.5, Cilium 1.20.2 and Longhorn 1.13.0. Upgrade Kubernetes one minor version at a time and check CNI and storage compatibility before starting. Check nodes, etcd health, Cilium status, application readiness, API readiness and public routes before draining one node. Check disruption budgets; migrate only one etcd member at a time. Before monitoring pod or node maintenance, verify all monitoring PVCs are Bound and their Longhorn volumes are healthy. Longhorn's three replicas support availability across Kubernetes nodes but are not an off-cluster backup; scheduled off-cluster monitoring backups are not configured.
+Current platform versions are Kubernetes 1.36.5, Cilium 1.20.2 and Longhorn 1.13.0. Upgrade Kubernetes one minor version at a time and check CNI and storage compatibility before starting. Check nodes, etcd health, Cilium status, application readiness, API readiness and public routes before draining one node. Check disruption budgets; migrate only one etcd member at a time. Before monitoring pod or node maintenance, verify all monitoring PVCs are Bound and their Longhorn volumes are healthy.
+
+Longhorn currently has no configured external backup target or recurring backup jobs. The external destination must expose NFS or an S3-compatible endpoint before scheduled Longhorn backups can be enabled. See [storage and recovery](storage-and-recovery.md) for the recovery policy and limitations.
 
 ```bash
 kubectl get nodes
