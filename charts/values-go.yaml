@@ -16,7 +16,7 @@ topologySpreadConstraints:
 
 image:
   repository: egyhaty/golang
-  tag: "sha-002200d"
+  tag: "sha-8417315"
   pullPolicy: IfNotPresent
 
 service:
