@@ -2,27 +2,29 @@
 
 ## Kubernetes persistent storage
 
-Longhorn is installed by Argo CD from `argocd/apps/longhorn.yaml`; chart values are kept in `storage/longhorn/values.yaml`. Each Kubernetes VM contributes its dedicated 80 GiB virtual disk, mounted in the guest at `/var/lib/longhorn`. Longhorn uses three replicas for the default StorageClass, with replica anti-affinity so a volume's replicas land on separate Kubernetes nodes. The default reclaim policy is `Retain`.
+Longhorn is installed by Argo CD from `argocd/apps/longhorn.yaml`; chart values are in `storage/longhorn/values.yaml`. Each Kubernetes VM contributes a dedicated virtual disk mounted in the guest at `/var/lib/longhorn`. The default StorageClass uses three replicas with hard node anti-affinity and a `Retain` reclaim policy.
 
-The Longhorn UI stays internal as a ClusterIP service. Prometheus scrapes Longhorn's ServiceMonitor. This provides replicated persistent volumes for workloads, but does not make single-replica applications highly available and is not a substitute for off-cluster backups.
+The Longhorn UI is internal. Prometheus scrapes Longhorn metrics through a ServiceMonitor. Replication improves availability across Kubernetes nodes, but it is not an off-cluster backup and does not make a single-replica application highly available.
 
-## External encrypted backup
+## Backup policy and current state
 
-The manual pre-storage migration archive is stored on the existing external SMB backup share mounted by Proxmox at:
+A manually created, encrypted migration archive was checksum-verified and stored outside the cluster. It covered cluster recovery material and monitoring data at that point in time. The archive and its decryption key are kept outside this repository; their storage locations and contents are intentionally not published.
 
-```text
-/mnt/pve/backup-e3-smb/karm-devops/manual/20261015-platform-storage/
+Longhorn currently has no configured backup target or recurring backup jobs. The available external destination is SMB-only, while Longhorn's native backup target requires an NFS export or an S3-compatible endpoint. No unsupported bridge or unverified schedule is configured. Enable NFS or an S3-compatible target on the backup service, then configure the endpoint and credentials through protected cluster secrets before declaring automated volume backups active.
+
+The intended policy is encrypted daily backups with a 7-day retention window, followed by a restore drill to a separate test volume. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure. A completed backup is not considered proven until a restore has been mounted and verified.
+
+## Recovery flow
+
+```mermaid
+flowchart LR
+  App[Application PVC] --> Snapshot[Longhorn snapshot]
+  Snapshot --> Encrypt[Encrypted volume backup]
+  Encrypt --> Target[External NFS or S3-compatible target]
+  Target --> Restore[Restore to isolated test volume]
+  Restore --> Verify[Verify files and application startup]
+  Git[Git desired state] --> Reconcile[Argo CD reconciliation]
+  Etcd[Protected etcd snapshot] --> ControlPlane[Version-matched control-plane recovery]
 ```
 
-The encrypted file is `pre-storage-backup-20261015.tar.age`; `README.txt` documents the contents and restore outline, and `SHA256SUMS` verifies the encrypted file. It contains an etcd snapshot, Kubernetes control-plane configuration and secrets, node inventory, and archived Prometheus/Grafana/node data. Files on the share are mode 0600. The payload is encrypted with age before transfer.
-
-The private age identity is kept separately at `.backup-recovery/age-identity.txt` in the operator's local workspace and is ignored by Git. Keep an additional protected copy outside the workspace. Never upload the private identity beside the archive. To decrypt, use the recovery identity on a trusted machine, then inspect the tar listing before extraction:
-
-```bash
-age -d -i /secure/path/age-identity.txt \
-  -o pre-storage-backup-20261015.tar \
-  pre-storage-backup-20261015.tar.age
-tar -tf pre-storage-backup-20261015.tar
-```
-
-An etcd snapshot is for cluster disaster recovery. Do not restore it over a running cluster; follow the Kubernetes version-specific etcd recovery procedure. PVC data also needs its own consistent backup process. This archive is a verified manual point-in-time copy; automated scheduling and restore drills are future work.
+Never restore an etcd snapshot over a healthy cluster. Use the Kubernetes and etcd recovery procedure matching the snapshot version. Keep decryption material separate from the backup payload and test access through the documented recovery procedure.

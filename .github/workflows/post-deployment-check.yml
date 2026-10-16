@@ -1,0 +1,28 @@
+name: Post-deployment checks
+
+on:
+  workflow_run:
+    workflows: ["Build and Promote Applications"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-deployment-checks
+  cancel-in-progress: false
+
+jobs:
+  public-health:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Check public application routes and Prometheus targets
+        env:
+          PROMETHEUS_BASIC_AUTH: ${{ secrets.PROMETHEUS_BASIC_AUTH }}
+        run: bash scripts/check-deployment.sh
