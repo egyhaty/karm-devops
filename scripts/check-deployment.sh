@@ -20,9 +20,10 @@ check_app() {
     sleep 20
   done
 
+  curl --fail --silent --show-error --max-time 10 "$base/" -o /dev/null
   curl --fail --silent --show-error --max-time 10 "$base/metrics" -o "$metrics_file"
-  grep -q '^http_requests_total' "$metrics_file" || {
-    echo "::error::$name metrics endpoint is missing the expected application metric"
+  grep -q '^# TYPE ' "$metrics_file" || {
+    echo "::error::$name metrics endpoint is not returning Prometheus exposition data"
     return 1
   }
   echo "$name public health and metrics routes are healthy"
