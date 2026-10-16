@@ -32,6 +32,11 @@ jobs:
   build-nodejs:
     runs-on: ubuntu-latest
     needs: prepare
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -70,13 +75,30 @@ jobs:
           curl -fsS http://127.0.0.1:3000/metrics -o /tmp/metrics-3000.txt
           grep -q '^http_requests_total' /tmp/metrics-3000.txt
       - name: Publish tested Node.js image
+        id: publish
         env:
           IMAGE: ${{ secrets.USERNAME }}/nodejs:sha-${{ needs.prepare.outputs.short_sha }}
-        run: docker push "$IMAGE"
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE"
+          digest="$(docker buildx imagetools inspect "$IMAGE" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" == sha256:* ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Attest Node.js image provenance
+        uses: actions/attest@v4.2.2
+        with:
+          subject-name: ${{ secrets.USERNAME }}/nodejs
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
 
   build-golang:
     runs-on: ubuntu-latest
     needs: prepare
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -115,9 +137,21 @@ jobs:
           curl -fsS http://127.0.0.1:8080/metrics -o /tmp/metrics-8080.txt
           grep -q '^http_requests_total' /tmp/metrics-8080.txt
       - name: Publish tested Go image
+        id: publish
         env:
           IMAGE: ${{ secrets.USERNAME }}/golang:sha-${{ needs.prepare.outputs.short_sha }}
-        run: docker push "$IMAGE"
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE"
+          digest="$(docker buildx imagetools inspect "$IMAGE" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" == sha256:* ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Attest Go image provenance
+        uses: actions/attest@v4.2.2
+        with:
+          subject-name: ${{ secrets.USERNAME }}/golang
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
 
   update-helm-values:
     runs-on: ubuntu-latest
