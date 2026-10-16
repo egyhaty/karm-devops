@@ -45,7 +45,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: platform-validation-\${{ github.workflow }}-\${{ github.ref }}
+  group: platform-validation-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -88,7 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           version='v4.54.1'
-          curl -fsSL "https://github.com/mikefarah/yq/releases/download/\${version}/yq_linux_amd64" -o /tmp/yq
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${version}/yq_linux_amd64" -o /tmp/yq
           sudo install /tmp/yq /usr/local/bin/yq
           yq --version
           jq --version
@@ -111,7 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           version='v4.54.1'
-          curl -fsSL "https://github.com/mikefarah/yq/releases/download/\${version}/yq_linux_amd64" -o /tmp/yq
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${version}/yq_linux_amd64" -o /tmp/yq
           sudo install /tmp/yq /usr/local/bin/yq
           yq --version
           jq --version
@@ -122,7 +122,7 @@ jobs:
         run: |
           set -euo pipefail
           version='0.6.7'
-          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v\${version}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${version}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
           tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
           sudo install /tmp/kubeconform /usr/local/bin/kubeconform
       - name: Validate Kubernetes manifests
@@ -138,7 +138,7 @@ jobs:
           kubeconform -strict -summary -kubernetes-version "$kubernetes_version" \
             -schema-location default \
             -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-            "\${files[@]}"
+            "${files[@]}"
       - name: Shell script syntax
         run: bash -n scripts/bootstrap-node.sh scripts/prepare-storage-node.sh scripts/render-platform.sh scripts/validate-platform.sh scripts/export-crd-schemas.sh scripts/export-kubernetes-schema.sh scripts/use-local-control-plane-api.sh
 
@@ -155,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           version='8.24.2'
-          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v\${version}/gitleaks_\${version}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           sudo install /tmp/gitleaks /usr/local/bin/gitleaks
       - name: Gitleaks scan
