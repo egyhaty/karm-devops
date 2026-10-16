@@ -25,7 +25,7 @@ Backup artifacts for this migration are under `/root/platform-upgrade-20261015` 
 
 ## Maintenance
 
-Check nodes, etcd health, Cilium status, application readiness, API readiness and public routes before draining one node. Check disruption budgets; migrate only one etcd member at a time. Monitoring emptyDir contents require a consistent backup before pod recreation; a disruption budget does not preserve data.
+Check nodes, etcd health, Cilium status, application readiness, API readiness and public routes before draining one node. Check disruption budgets; migrate only one etcd member at a time. Before monitoring pod or node maintenance, verify all monitoring PVCs are Bound and their Longhorn volumes are healthy. Longhorn's three replicas support availability across Kubernetes nodes but are not an off-cluster backup; scheduled off-cluster monitoring backups are not configured.
 
 ```bash
 kubectl get nodes
