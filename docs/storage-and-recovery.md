@@ -10,9 +10,9 @@ The Longhorn UI is internal. Prometheus scrapes Longhorn metrics through a Servi
 
 A manually created, encrypted migration archive was checksum-verified and stored outside the cluster. It covered cluster recovery material and monitoring data at that point in time. The archive and its decryption key are kept outside this repository; their storage locations and contents are intentionally not published.
 
-Longhorn 1.13 supports SMB/CIFS backup targets directly. The cluster currently has no configured target or recurring backup jobs because the reachable SMB endpoint, share name and credentials have not been provisioned in Longhorn. Keep credentials in a Kubernetes Secret in the `longhorn-system` namespace; keep secret values and the external share location out of Git.
+Longhorn 1.13 supports SMB/CIFS backup targets directly. The existing external SMB destination is mounted and readable from Proxmox, but a read-only TCP/445 connectivity check from the Kubernetes VM could not reach it. The Longhorn target and recurring jobs are therefore not configured. Do not publish the destination address or share path. Before enabling backups, provide TCP/445 access from the Kubernetes nodes or choose another supported target reachable from those VMs; then store CIFS credentials in a Kubernetes Secret in `longhorn-system`.
 
-The default StorageClass does not encrypt volumes. Longhorn encrypts backups made from encrypted volumes, so encrypted backup coverage requires the monitoring PVCs to use an encrypted StorageClass and the required node-side encryption support. The intended policy is daily backups with seven-day retention, followed by a restore drill to an isolated test volume. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure. A completed backup is not proven until a restore has been mounted and verified.
+The default StorageClass does not encrypt volumes. Longhorn encrypts backups made from encrypted volumes, so encrypted backup coverage requires the monitoring PVCs to use an encrypted StorageClass and node-side encryption support. After network reachability is available, the intended policy is a daily recurring backup with age-based retention of `168h` (seven days), followed by a restore drill to an isolated test volume. These backups do not exist yet, and no restore drill has been completed. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure. A completed backup is not proven until a restore has been mounted and verified.
 
 ## Recovery flow
 
@@ -20,7 +20,7 @@ The default StorageClass does not encrypt volumes. Longhorn encrypts backups mad
 flowchart LR
   App[Application PVC] --> Snapshot[Longhorn snapshot]
   Snapshot --> Encrypt[Encrypted volume backup]
-  Encrypt --> Target[External NFS or S3-compatible target]
+  Encrypt --> Target[Reachable external SMB or S3 target]
   Target --> Restore[Restore to isolated test volume]
   Restore --> Verify[Verify files and application startup]
   Git[Git desired state] --> Reconcile[Argo CD reconciliation]
