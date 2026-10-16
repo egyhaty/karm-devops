@@ -14,7 +14,7 @@ Three-node Kubernetes platform with GitOps delivery, Cilium networking, TLS ingr
 
 The shared ingress address is **66.11.126.179**. Kubernetes API clients use `https://66.11.126.179:6443`. Node addresses are distinct from the shared service address. The former node and ingress addresses are no longer assigned to this platform.
 
-Kubernetes v1.32.13 uses three stacked etcd members. Cilium 1.19.9 replaces Flannel, with cluster-pool IPAM `10.245.0.0/16`, VXLAN port 8473, and kube-proxy retained. Cilium and kubelets bootstrap through their local control-plane API to avoid depending on ingress before networking is ready. See [architecture](docs/architecture.md).
+Kubernetes v1.33.13 uses three stacked etcd members. Cilium 1.19.9 replaces Flannel, with cluster-pool IPAM `10.245.0.0/16`, VXLAN port 8473, and kube-proxy retained. Cilium and kubelets bootstrap through their local control-plane API to avoid depending on ingress before networking is ready. See [architecture](docs/architecture.md).
 
 ## Components and ownership
 
@@ -69,7 +69,7 @@ Application replica minimums are three, with hostname spreading and disruption b
 
 Prometheus, Grafana and Alertmanager now store their current data on Longhorn PVCs (10Gi, 5Gi and 2Gi respectively), with three replicas across the Kubernetes nodes. The PVCs and Longhorn volumes are bound and healthy. Longhorn replication protects volume availability; a scheduled off-cluster backup is not configured.
 
-Kubernetes upgrades are performed one minor version at a time. Current nodes run 1.32.13; additional minor updates require coordinating Cilium and Longhorn compatibility first. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
+Kubernetes upgrades are performed one minor version at a time. Current nodes run 1.33.13; additional minor updates require coordinating Cilium and Longhorn compatibility first. Etcd backups protect Kubernetes state, not application volume contents. Do not stop two etcd members together.
 
 ## Documentation
 
