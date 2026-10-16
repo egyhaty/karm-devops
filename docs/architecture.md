@@ -22,12 +22,14 @@ flowchart LR
   Backup -. restore drill .-> PVC
 ```
 
-The current desired application images provide a traceable delivery example:
+The current application images provide a traceable delivery example:
 
-- Application source commit: [`84e3c1b`](https://github.com/egyhaty/karm-devops/commit/84e3c1bba9adb58b61a206b9bae0b13bdc271be4) (`feat: migrate platform to three-node Cilium networking and HA ingress`).
-- Image promotion commit: [`c747522`](https://github.com/egyhaty/karm-devops/commit/c7475227cbf7c486e3a577d88f8b8f653777e795), which records both application tags as `sha-84e3c1b`.
-- GitHub Actions builds and smoke-tests each image before publishing; the promoted Helm values are reconciled by Argo CD.
+- Build source revision: [`002200d`](https://github.com/egyhaty/karm-devops/commit/002200d484b62e1104821a93d6d212f50b97ed90).
+- [GitHub Actions run 49](https://github.com/egyhaty/karm-devops/actions/runs/38869857895) built and smoke-tested both images, published them, and created signed provenance attestations for their registry digests.
+- Image promotion commit: [`e91fb33`](https://github.com/egyhaty/karm-devops/commit/e91fb33ffccaaaa690c20eb1b658dd2ffa6e474b), recording `sha-002200d` for both applications.
+- Argo CD reconciled the Helm values; the live applications report Synced/Healthy with three ready replicas each.
 
+The [post-deployment workflow](https://github.com/egyhaty/karm-devops/actions/workflows/post-deployment-check.yml) checks public health and metrics routes. Prometheus scrape target validation runs when the `PROMETHEUS_BASIC_AUTH` GitHub Actions secret is configured.
 Each node runs an API server, controller manager, scheduler, etcd member and application workloads. Three etcd members require two healthy members for quorum. Losing one member can preserve Kubernetes state availability; losing two cannot.
 
 MetalLB advertises the shared service address. Traefik terminates public application TLS and forwards Kubernetes API TLS without termination. Its API backend checks all control-plane node addresses. API TLS authentication and authorization remain with Kubernetes.
