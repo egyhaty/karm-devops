@@ -2,8 +2,7 @@ name: Platform Validation
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'argocd/**'
       - 'cert-manager/**'
@@ -21,10 +20,8 @@ on:
       - '.github/workflows/automate-build-apps.yml'
       - '.github/workflows/platform-validation.yml'
       - '.gitleaks.toml'
-      - '.yamllint.yml'
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'argocd/**'
       - 'cert-manager/**'
@@ -42,14 +39,13 @@ on:
       - '.github/workflows/automate-build-apps.yml'
       - '.github/workflows/platform-validation.yml'
       - '.gitleaks.toml'
-      - '.yamllint.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: platform-validation-${{ github.workflow }}-${{ github.ref }}
+  group: platform-validation-\${{ github.workflow }}-\${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -82,25 +78,24 @@ jobs:
           helm lint charts -f charts/values-node.yaml
 
   yaml:
-    name: YAML validation
+    name: Bash and YAML validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - name: Install YAML tools
-        run: python -m pip install --disable-pip-version-check PyYAML yamllint
-      - name: Check YAML, topology, and availability settings
-        run: python scripts/validate-platform.py
-      - name: Run yamllint on source YAML
+      - name: Install yq
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t files < <(git ls-files '*.yml' '*.yaml' | grep -vE '(^|/)(vendor|rendered|templates)/' || true)
-          if [ ${#files[@]} -eq 0 ]; then echo 'No source YAML files found'; exit 0; fi
-          yamllint -c .yamllint.yml "${files[@]}"
+          version='v4.54.1'
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/\${version}/yq_linux_amd64" -o /tmp/yq
+          sudo install /tmp/yq /usr/local/bin/yq
+          yq --version
+          jq --version
+      - name: Check YAML, topology, and availability settings
+        run: bash scripts/validate-platform.sh
+      - name: Check shell syntax
+        run: bash -n scripts/*.sh
 
   kubernetes:
     name: Kubernetes schema validation
@@ -111,10 +106,15 @@ jobs:
       - uses: azure/setup-helm@v4
         with:
           version: v3.19.0
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - run: python -m pip install --disable-pip-version-check PyYAML
+      - name: Install yq
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='v4.54.1'
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/\${version}/yq_linux_amd64" -o /tmp/yq
+          sudo install /tmp/yq /usr/local/bin/yq
+          yq --version
+          jq --version
       - name: Render workloads and export upstream CRD schemas
         run: bash scripts/render-platform.sh
       - name: Install kubeconform
@@ -122,14 +122,14 @@ jobs:
         run: |
           set -euo pipefail
           version='0.6.7'
-          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v${version}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/v\${version}/kubeconform-linux-amd64.tar.gz" -o /tmp/kubeconform.tar.gz
           tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
           sudo install /tmp/kubeconform /usr/local/bin/kubeconform
       - name: Validate Kubernetes manifests
         shell: bash
         run: |
           set -euo pipefail
-          kubernetes_version="$(python3 -c 'import yaml; print(yaml.safe_load(open("infrastructure/nodes.yaml", encoding="utf-8"))["cluster"]["kubernetesVersion"].removeprefix("v"))')"
+          kubernetes_version="$(yq -r '.cluster.kubernetesVersion | sub("^v"; "")' infrastructure/nodes.yaml)"
           kubeconform -strict -summary -kubernetes-version "$kubernetes_version" \
             -schema-location default \
             -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
@@ -138,9 +138,9 @@ jobs:
           kubeconform -strict -summary -kubernetes-version "$kubernetes_version" \
             -schema-location default \
             -schema-location 'schemas/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-            "${files[@]}"
+            "\${files[@]}"
       - name: Shell script syntax
-        run: bash -n scripts/bootstrap-node.sh scripts/prepare-storage-node.sh scripts/render-platform.sh scripts/use-local-control-plane-api.sh
+        run: bash -n scripts/bootstrap-node.sh scripts/prepare-storage-node.sh scripts/render-platform.sh scripts/validate-platform.sh scripts/export-crd-schemas.sh scripts/export-kubernetes-schema.sh scripts/use-local-control-plane-api.sh
 
   security:
     name: Secret and IaC scanning
@@ -155,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           version='8.24.2'
-          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v\${version}/gitleaks_\${version}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           sudo install /tmp/gitleaks /usr/local/bin/gitleaks
       - name: Gitleaks scan
