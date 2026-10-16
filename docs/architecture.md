@@ -38,6 +38,6 @@ MetalLB advertises the shared service address. Traefik terminates public applica
 
 Cilium agents and operators contact their own node's API using `status.hostIP`. Kubelet configurations likewise use local APIs. Cilium allocates pod addresses from its own cluster pool independently of legacy node podCIDR metadata. Kube-proxy handles Kubernetes Services.
 
-The policies in `networking/policies/applications.yaml` cover the two demo apps: ingress from Traefik, monitoring and the peer app, plus DNS and the required app traffic on egress. Hubble is available for inspecting pod traffic. The policies do not currently cover every infrastructure namespace.
+The policies in `networking/policies/` cover the two demo apps and allow only the Prometheus server to reach Longhorn manager metrics on TCP 9500. Hubble is available for inspecting pod traffic. These policies do not cover every infrastructure namespace.
 
 The Argo CD HA profile runs multiple HTTP servers, repository servers and Redis instances. Node Exporter runs on each node. Prometheus, Grafana and Alertmanager keep their data on Longhorn volumes, which are backed up to the external SMB share.
