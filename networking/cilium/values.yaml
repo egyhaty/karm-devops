@@ -1,5 +1,6 @@
 k8sServiceHost: ''
 k8sServicePort: 6443
+upgradeCompatibility: "1.18"
 kubeProxyReplacement: false
 routingMode: tunnel
 tunnelProtocol: vxlan
