@@ -19,7 +19,7 @@ The platform was migrated from a single-node Flannel setup to a three-node Kuber
 
 Current platform versions are Kubernetes 1.36.5, Cilium 1.20.2 and Longhorn 1.13.0. Upgrade Kubernetes one minor version at a time and check CNI and storage compatibility before starting. Check nodes, etcd health, Cilium status, application readiness, API readiness and public routes before draining one node. Check disruption budgets; migrate only one etcd member at a time. Before monitoring pod or node maintenance, verify all monitoring PVCs are Bound and their Longhorn volumes are healthy.
 
-Longhorn currently has no configured external backup target or recurring backup jobs. Longhorn 1.13 supports SMB/CIFS directly, but the cluster still needs the reachable server/share details and a protected credential Secret. The default StorageClass is unencrypted; encrypted backups require encrypted volumes. See [storage and recovery](storage-and-recovery.md) for the recovery policy and limitations.
+Longhorn 1.13 is configured with a daily SMB/CIFS backup job that retains the latest seven backups for each volume. The backup endpoint is configured on the cluster and kept out of public Git; its CIFS credentials are stored as a SealedSecret. A canary backup and restore has been verified. SMB encryption protects the transfer, while the default StorageClass remains unencrypted, so at-rest encryption is not guaranteed. See [storage and recovery](storage-and-recovery.md) for the restore test and limitations.
 
 ```bash
 kubectl get nodes

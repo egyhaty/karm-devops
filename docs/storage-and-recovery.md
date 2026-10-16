@@ -10,18 +10,19 @@ The Longhorn UI is internal. Prometheus scrapes Longhorn metrics through a Servi
 
 A manually created, encrypted migration archive was checksum-verified and stored outside the cluster. It covered cluster recovery material and monitoring data at that point in time. The archive and its decryption key are kept outside this repository; their storage locations and contents are intentionally not published.
 
-Longhorn 1.13 supports SMB/CIFS backup targets directly. The cluster currently has no configured target or recurring backup jobs because the reachable SMB endpoint, share name and credentials have not been provisioned in Longhorn. Keep credentials in a Kubernetes Secret in the `longhorn-system` namespace; keep secret values and the external share location out of Git.
+Longhorn 1.13 uses an external SMB/CIFS backup target. The endpoint is kept in the cluster's `longhorn-default-resource` ConfigMap and is intentionally omitted from public Git. Argo CD ignores only that target data field so Helm reconciliation preserves the operator-managed value. CIFS credentials are managed by the SealedSecret in `sealed-secrets/longhorn/backup-credentials.yaml`; the resulting Secret is in `longhorn-system`.
 
-The default StorageClass does not encrypt volumes. Longhorn encrypts backups made from encrypted volumes, so encrypted backup coverage requires the monitoring PVCs to use an encrypted StorageClass and the required node-side encryption support. The intended policy is daily backups with seven-day retention, followed by a restore drill to an isolated test volume. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure. A completed backup is not proven until a restore has been mounted and verified.
+The `daily-backup` recurring job runs at 01:00 and retains the latest seven backups per volume. Its `default` group covers volumes without another recurring job. On 2026-10-16, a temporary 1 GiB canary volume was backed up to SMB, restored to a separate Longhorn volume, and its test file verified; the temporary Kubernetes resources and canary backup were then removed. SMB 3.1.1 encryption (`seal`) protects traffic in transit. The default StorageClass is unencrypted, so Longhorn does not encrypt these backups at rest; encryption on the external server was not verified. Longhorn volume backups cover PVC contents; Kubernetes control-plane state needs a separate etcd recovery procedure.
 
 ## Recovery flow
 
 ```mermaid
 flowchart LR
   App[Application PVC] --> Snapshot[Longhorn snapshot]
-  Snapshot --> Encrypt[Encrypted volume backup]
-  Encrypt --> Target[External NFS or S3-compatible target]
-  Target --> Restore[Restore to isolated test volume]
+  Snapshot --> Backup[Longhorn volume backup]
+  Backup --> Target[External SMB/CIFS target]
+  Target --> Transit[SMB 3.1.1 encrypted transport]
+  Transit --> Restore[Restore to isolated test volume]
   Restore --> Verify[Verify files and application startup]
   Git[Git desired state] --> Reconcile[Argo CD reconciliation]
   Etcd[Protected etcd snapshot] --> ControlPlane[Version-matched control-plane recovery]

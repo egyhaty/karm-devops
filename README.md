@@ -33,7 +33,7 @@ The architecture guide includes a traceable delivery example from source commit 
 
 Longhorn replicates persistent volumes across Kubernetes nodes. A manually created encrypted migration archive was checksum-verified and stored off-cluster. Its contents and protected storage locations are not published here.
 
-Longhorn 1.13 supports SMB/CIFS backup targets. The current Kubernetes cluster has no configured target or recurring jobs because the SMB endpoint, share name and credentials are not present in Longhorn. The default StorageClass also does not encrypt volumes; encrypted backups require encrypted volumes. The recovery policy is daily backups with seven-day retention and a restore drill to an isolated test volume. See [storage and recovery](docs/storage-and-recovery.md) for current status. Longhorn replicas are not a substitute for an off-cluster backup. Etcd snapshots protect Kubernetes state, not application volume contents.
+Longhorn sends daily volume backups to an external SMB/CIFS target and retains the latest seven backups per volume. A canary backup was restored to an isolated volume and its contents verified. SMB encryption protects traffic in transit; the default StorageClass is unencrypted, so this setup does not claim encryption at rest. Target details stay outside public Git and CIFS credentials are stored as a SealedSecret. See [storage and recovery](docs/storage-and-recovery.md) for the recovery limits. Longhorn replicas are not a substitute for an off-cluster backup. Etcd snapshots protect Kubernetes state, not application volume contents.
 
 ## Access
 

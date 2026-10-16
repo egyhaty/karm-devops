@@ -18,8 +18,9 @@ flowchart LR
   Cilium[Cilium overlay and policies] --> Apps
   Prom[Prometheus] --> Metrics[Application and node metrics]
   Apps --> PVC[Longhorn persistent volumes]
-  PVC -. planned .-> Backup[Planned encrypted off-cluster backup]
-  Backup -. restore drill .-> PVC
+  PVC --> Backup[Daily Longhorn backup]
+  Backup --> SMB[External SMB/CIFS target]
+  Backup -. verified canary restore .-> PVC
 ```
 
 The current application images provide a traceable delivery example:
