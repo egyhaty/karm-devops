@@ -179,3 +179,6 @@ jobs:
           name: trivy-config-report
           path: trivy-config.txt
           if-no-files-found: warn
+      - name: Show Trivy findings
+        if: always()
+        run: cat trivy-config.txt
