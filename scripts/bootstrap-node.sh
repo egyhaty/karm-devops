@@ -27,7 +27,7 @@ systemctl restart containerd
 install -d -m 755 /etc/apt/keyrings
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.36/deb/Release.key |
   gpg --dearmor --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-printf 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /\n' > /etc/apt/sources.list.d/kubernetes.list
+printf 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.36/deb/ /\n' > /etc/apt/sources.list.d/kubernetes.list
 apt-get update -qq
 apt-get install -y "kubelet=${KUBERNETES_PACKAGE_VERSION}" "kubeadm=${KUBERNETES_PACKAGE_VERSION}" "kubectl=${KUBERNETES_PACKAGE_VERSION}"
 apt-mark hold kubelet kubeadm kubectl

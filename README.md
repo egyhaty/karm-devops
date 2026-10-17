@@ -27,13 +27,15 @@ The [node inventory](infrastructure/nodes.yaml) records the Kubernetes VM roles.
 - Post-deployment checks verify the public application health and metrics routes. Authenticated Prometheus target checks are enabled by the `PROMETHEUS_BASIC_AUTH` GitHub Actions secret.
 - Pull-request validation covers Terraform, Helm, YAML, Kubernetes schemas, shell syntax and secret scanning.
 
+The two apps stay intentionally small and expose the same health and metrics routes. That keeps the focus on comparing image builds, Helm deployments and Prometheus scraping across Go and Node.js.
+
 The architecture guide includes a traceable delivery example from source commit through image promotion and GitOps reconciliation. Verify published image provenance with `gh attestation verify oci://docker.io/egyhaty/golang@sha256:<digest> --repo egyhaty/karm-devops` (replace the digest with the published image digest).
 
 ## Storage and recovery
 
 Longhorn replicates persistent volumes across the Kubernetes nodes. A separate encrypted migration archive was checksum-checked and stored off-cluster; its decryption key is stored separately.
 
-Longhorn sends daily volume backups to an external SMB/CIFS share and keeps the latest seven for each volume. I restored a test backup to a separate volume and checked its contents. SMB encrypts the connection; the default StorageClass is not encrypted, so backups are not encrypted at rest by Longhorn. The share address is configured on the cluster, and its credentials are stored as a SealedSecret. See [storage and recovery](docs/storage-and-recovery.md) for what each backup covers.
+Longhorn sends daily volume backups to an external SMB/CIFS share and keeps the latest seven for each volume. A test backup was restored to a separate volume and its contents were checked. SMB encrypts the connection; the default StorageClass is not encrypted, so backups are not encrypted at rest by Longhorn. The share address is configured on the cluster, and its credentials are stored as a SealedSecret. See [storage and recovery](docs/storage-and-recovery.md) for what each backup covers.
 
 ## Access
 
@@ -58,7 +60,7 @@ terraform -chdir=terraform fmt -check -recursive
 terraform -chdir=terraform validate
 ```
 
-Install Bash, [yq](https://github.com/mikefarah/yq), jq, Helm 3, kubectl, Terraform and curl first. Rendering creates local files under `rendered/` and `schemas/`; it does not connect to the live cluster.
+Install Bash, [yq](https://github.com/mikefarah/yq), jq, Helm 4, kubectl, Terraform and curl first. Rendering creates local files under `rendered/` and `schemas/`; it does not connect to the live cluster.
 
 ## Documentation
 

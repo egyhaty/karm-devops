@@ -12,7 +12,7 @@ A manually created encrypted migration archive was checksum-checked and stored o
 
 Longhorn 1.13 writes to an external SMB/CIFS share. The share address is set in the cluster's `longhorn-default-resource` ConfigMap, so it does not appear in this public repo. Argo CD ignores that one ConfigMap field to preserve the setting. The encrypted credentials are in `sealed-secrets/longhorn/backup-credentials.yaml`; Sealed Secrets creates the usable Secret in `longhorn-system`.
 
-The `daily-backup` job runs at 01:00 and keeps seven backups per volume. It applies to volumes that do not have another recurring job. I tested it with a temporary 1 GiB volume, restored that backup into a separate Longhorn volume, and checked the test file before removing the test resources. SMB 3.1.1 encrypts the transfer. The default StorageClass is unencrypted, so Longhorn does not encrypt the backup data at rest; I have not verified disk encryption on the backup server. Longhorn covers PVC data. The etcd snapshot covers Kubernetes control-plane state.
+The `daily-backup` job runs at 01:00 and keeps seven backups per volume. It applies to volumes that do not have another recurring job. The restore test used a temporary 1 GiB volume, restored its backup to a separate Longhorn volume, and checked the test file before removing the test resources. SMB 3.1.1 encrypts the transfer. The default StorageClass is unencrypted, so Longhorn does not encrypt the backup data at rest; disk encryption on the backup server has not been verified. Longhorn covers PVC data. The etcd snapshot covers Kubernetes control-plane state.
 
 ## Recovery flow
 

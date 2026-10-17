@@ -2,7 +2,7 @@
 
 ## Existing-cluster adoption
 
-Keep Terraform state encrypted and backed up outside Git. Compare existing release values with the repository before importing and planning. For the manually installed Cilium release:
+Terraform state is kept in the local, Git-ignored `terraform/terraform.tfstate` file because it contains details about managed resources. Back it up securely before provider upgrades. A fresh clone needs the state restored, or the existing resources imported, before it can plan against this cluster. Compare release values with the repository before importing or planning. For the manually installed Cilium release:
 
 ```bash
 terraform -chdir=terraform import helm_release.cilium kube-system/cilium

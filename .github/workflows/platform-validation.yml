@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: azure/setup-helm@v4
         with:
-          version: v3.19.0
+          version: v4.3.1
       - name: Lint application values
         run: |
           helm lint charts -f charts/values-go.yaml
@@ -105,7 +105,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: azure/setup-helm@v4
         with:
-          version: v3.19.0
+          version: v4.3.1
       - name: Install yq
         shell: bash
         run: |

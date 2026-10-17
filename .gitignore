@@ -1,29 +1,30 @@
+# Node.js dependencies and local Go build output
 node_modules/
-*/node_modules/
 golang/golang-app
-*.log
 
-# Terraform generated files
+# Terraform working files, state and local variable files
 .terraform/
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfvars.json
 !*.tfvars.example
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
 
-# Node dependencies
-node_modules/
-
-# Ignore generated and sensitive files
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfvars
-!*.tfvars.example
-node_modules/
-
-# Local validation output
+# Generated validation output
 rendered/
 schemas/
 
-# Encrypted off-cluster backup recovery keys
+# Local recovery material
 .backup-recovery/
+
+# Logs
+*.log
