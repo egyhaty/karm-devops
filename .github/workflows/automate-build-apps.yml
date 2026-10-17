@@ -75,6 +75,16 @@ jobs:
           curl -fsS http://127.0.0.1:3000/ | grep -Fx "version=$APP_TAG"
           curl -fsS http://127.0.0.1:3000/metrics -o /tmp/metrics-3000.txt
           grep -q '^http_requests_total' /tmp/metrics-3000.txt
+      - name: Scan Node.js image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ secrets.USERNAME }}/nodejs:sha-${{ needs.prepare.outputs.short_sha }}
+          version: v0.76.0
+          format: table
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
       - name: Publish tested Node.js image
         id: publish
         env:
@@ -138,6 +148,16 @@ jobs:
           curl -fsS http://127.0.0.1:8080/ | grep -Fx "version=$APP_TAG"
           curl -fsS http://127.0.0.1:8080/metrics -o /tmp/metrics-8080.txt
           grep -q '^http_requests_total' /tmp/metrics-8080.txt
+      - name: Scan Go image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ secrets.USERNAME }}/golang:sha-${{ needs.prepare.outputs.short_sha }}
+          version: v0.76.0
+          format: table
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
       - name: Publish tested Go image
         id: publish
         env:

@@ -4,3 +4,18 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+
+  - package-ecosystem: terraform
+    directory: "/terraform"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: "/golang"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: "/nodejs"
+    schedule:
+      interval: weekly

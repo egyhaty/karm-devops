@@ -20,9 +20,9 @@ helm template cilium cilium/cilium --version "$CILIUM_VERSION" --namespace kube-
 helm template traefik traefik/traefik --version 41.1.1 --namespace traefik --kube-version "$KUBERNETES_VERSION" --api-versions policy/v1/PodDisruptionBudget --include-crds -f traefik/values.yaml > rendered/traefik.yaml
 helm template longhorn longhorn/longhorn --version 1.13.0 --namespace longhorn-system --kube-version "$KUBERNETES_VERSION" --include-crds -f storage/longhorn/values.yaml > rendered/longhorn.yaml
 kubectl kustomize argocd/ha > rendered/argocd-ha.yaml
-helm show crds prometheus-community/kube-prometheus-stack --version 87.4.0 > rendered/crds/prometheus.yaml
+helm show crds prometheus-community/kube-prometheus-stack --version 92.10.1 > rendered/crds/prometheus.yaml
 yq -r '.spec.source.helm.values' argocd/apps/monitoring.yaml > /tmp/kube-prometheus-stack-values.yaml
-helm template monitoring prometheus-community/kube-prometheus-stack --version 87.4.0 --namespace monitoring --include-crds -f /tmp/kube-prometheus-stack-values.yaml > rendered/monitoring.yaml
+helm template monitoring prometheus-community/kube-prometheus-stack --version 92.10.1 --namespace monitoring --include-crds -f /tmp/kube-prometheus-stack-values.yaml > rendered/monitoring.yaml
 helm template cert-manager jetstack/cert-manager --version v1.21.1 --namespace cert-manager --set crds.enabled=true --include-crds > rendered/crds/cert-manager.yaml
 helm template metallb metallb/metallb --version 0.16.1 --namespace metallb-system --include-crds > rendered/crds/metallb.yaml
 helm show crds sealed-secrets/sealed-secrets --version 2.17.3 > rendered/crds/sealed-secrets.yaml

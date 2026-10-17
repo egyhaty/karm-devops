@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26.9-alpine AS builder
 
 WORKDIR /src
 
@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w" \
     -o /out/app .
 
-FROM alpine:3.22
+FROM alpine:3.24
 
 RUN addgroup -S -g 10001 app && \
     adduser -S -D -H -u 10001 -G app app
