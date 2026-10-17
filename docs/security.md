@@ -8,6 +8,8 @@ This is a public Kubernetes lab. The repository contains the cluster manifests a
 - Terraform state and the key for the off-cluster migration archive.
 - The external backup share address and any host-specific access details.
 
+Use the public certificate in `pub-cert.pem` with `kubeseal --cert pub-cert.pem --format yaml` to encrypt new Secret manifests. The certificate is safe to keep in Git; the controller's private key is not. Refresh the certificate from the cluster after its key is rotated.
+
 The CI workflow scans commits with Gitleaks and checks configuration with Trivy. The SealedSecret manifests in `sealed-secrets/` are encrypted for this cluster; they are not a replacement for protecting the controller's private key.
 
 ## Changes to the cluster

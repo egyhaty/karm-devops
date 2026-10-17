@@ -66,6 +66,7 @@ Install Bash, [yq](https://github.com/mikefarah/yq), jq, Helm 4, kubectl, Terraf
 
 - [Architecture and delivery trace](docs/architecture.md)
 - [Operations and migration](docs/operations.md)
+- [Security](docs/security.md)
 - [شرح المشروع بالعربي](docs/platform-explained-ar.md)
 - [Storage and recovery](docs/storage-and-recovery.md)
 
