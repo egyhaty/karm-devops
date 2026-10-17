@@ -16,7 +16,7 @@ topologySpreadConstraints:
 
 image:
   repository: egyhaty/nodejs
-  tag: "sha-f9c089d"
+  tag: "sha-4a3f146"
   pullPolicy: IfNotPresent
 
 service:
