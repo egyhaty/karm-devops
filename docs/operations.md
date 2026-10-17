@@ -15,6 +15,10 @@ Import other pre-existing resources as needed using their provider-supported ide
 
 The cluster started as a single-node Flannel setup. It now has three Kubernetes VMs, Cilium networking and a shared ingress/API address. The migration included node-by-node network changes, a policy test, API health checks, and application checks.
 
+## Replacing a node
+
+For a fresh Ubuntu 24.04 VM, `scripts/bootstrap-node.sh` installs the Kubernetes node packages and configures the local node address; joining the cluster is a separate step that needs a short-lived kubeadm token. If the VM has a new dedicated Longhorn disk, `scripts/prepare-storage-node.sh` checks its serial and size before formatting it for `/var/lib/longhorn`. It is only for a blank disk provisioned for this purpose.
+
 ## Maintenance
 
 Current platform versions are Kubernetes 1.36.5, Cilium 1.20.2 and Longhorn 1.13.0. Upgrade Kubernetes one minor version at a time and check CNI and storage compatibility before starting. Check nodes, etcd health, Cilium status, application readiness, API readiness and public routes before draining one node. Check disruption budgets; migrate only one etcd member at a time. Before monitoring pod or node maintenance, verify all monitoring PVCs are Bound and their Longhorn volumes are healthy.
