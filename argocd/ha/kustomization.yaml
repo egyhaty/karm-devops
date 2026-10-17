@@ -4,6 +4,23 @@ namespace: argocd
 resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.11/manifests/ha/install.yaml
 patches:
+  # Required pod anti-affinity prevents a surge pod from scheduling during upgrades.
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-redis-ha-haproxy
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-redis-ha-haproxy
+      spec:
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 0
+            maxUnavailable: 1
   # Runtime-generated authentication data remains owned by Argo CD.
   - patch: |-
       $patch: delete
