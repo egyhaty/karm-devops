@@ -17,4 +17,4 @@ cd golang
 APP_VERSION=dev PORT=8080 go run .
 ```
 
-Then check `http://localhost:8080/healthz`, `/`, and `/metrics`. The Docker image and Kubernetes settings are in this directory and `charts/values-go.yaml`.
+Then check `http://localhost:8080/healthz`, `/`, and `/metrics`. The Docker image is defined here. Kubernetes settings are in `charts/values-go.yaml`, rendered with the shared templates in `charts/`.

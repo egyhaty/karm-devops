@@ -18,4 +18,4 @@ npm ci
 APP_VERSION=dev PORT=3000 npm start
 ```
 
-Then check `http://localhost:3000/healthz`, `/`, and `/metrics`. The Docker image and Kubernetes settings are in this directory and `charts/values-node.yaml`.
+Then check `http://localhost:3000/healthz`, `/`, and `/metrics`. The Docker image is defined here. Kubernetes settings are in `charts/values-node.yaml`, rendered with the shared templates in `charts/`.

@@ -1,7 +1,0 @@
-replicaCount: 3
-image:
-  repository: egyhaty/dockerhub
-  tag: golang
-containerPort: 8080
-serviceAccountName: private
-fullnameOverride: golang
