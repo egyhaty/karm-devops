@@ -137,19 +137,19 @@ spec:
               containerPort: 9000
           startupProbe:
             httpGet:
-              path: /health/started
+              path: /auth/health/started
               port: management
             periodSeconds: 10
             failureThreshold: 60
           readinessProbe:
             httpGet:
-              path: /health/ready
+              path: /auth/health/ready
               port: management
             periodSeconds: 10
             timeoutSeconds: 3
           livenessProbe:
             httpGet:
-              path: /health/live
+              path: /auth/health/live
               port: management
             periodSeconds: 20
             timeoutSeconds: 3

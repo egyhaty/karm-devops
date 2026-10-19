@@ -37,6 +37,6 @@ spec:
       app.kubernetes.io/component: identity
   endpoints:
     - port: management
-      path: /metrics
+      path: /auth/metrics
       interval: 30s
 {{- end }}

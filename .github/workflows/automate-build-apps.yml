@@ -271,7 +271,7 @@ jobs:
             -e KC_BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -hex 24)" \
             "$IMAGE" start --optimized
           for attempt in {1..120}; do
-            if curl -fsS http://127.0.0.1:9000/health/ready -o /tmp/keycloak-health.json 2>/dev/null; then break; fi
+            if curl -fsS http://127.0.0.1:9000/auth/health/ready -o /tmp/keycloak-health.json 2>/dev/null; then break; fi
             sleep 1
           done
           if ! jq -e '.status == "UP"' /tmp/keycloak-health.json >/dev/null 2>&1; then
