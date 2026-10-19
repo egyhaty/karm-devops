@@ -185,6 +185,7 @@ jobs:
           done
           grep -q '^learning_lab_http_requests_total' /tmp/metrics-9090.txt
           curl -fsSI http://127.0.0.1:8080/ | grep -qi "content-security-policy:.*script-src 'self'"
+          docker rm -f golang-smoke >/dev/null
           docker rm -f golang-smoke-db >/dev/null
           docker network rm golang-smoke-network >/dev/null
       - name: Scan Go image
