@@ -158,6 +158,9 @@ jobs:
             if docker inspect -f '{{.State.Health.Status}}' golang-smoke-db | grep -qx healthy; then break; fi
             sleep 1
           done
+          docker exec golang-smoke-db pg_isready -U postgres -d learning
+          docker exec golang-smoke-db psql --set=ON_ERROR_STOP=1 --username postgres --dbname learning \
+            --command='CREATE SCHEMA app;'
           docker run -d --name golang-smoke --network golang-smoke-network \
             -p 127.0.0.1:8080:8080 -p 127.0.0.1:9090:9090 \
             -e APP_VERSION="$APP_TAG" -e DATABASE_URL='postgres://postgres:postgres@golang-smoke-db:5432/learning?sslmode=disable' \
@@ -166,10 +169,13 @@ jobs:
             -e OIDC_CLIENT_ID=learning-lab-web -e OIDC_CALLBACK_URL='https://learn.example.test/api/auth/callback' \
             -e COOKIE_SECURE=false "$IMAGE"
           for attempt in {1..30}; do
-            if curl -fsS http://127.0.0.1:8080/healthz; then break; fi
+            if curl -fsS http://127.0.0.1:8080/healthz 2>/dev/null | grep -qx ok; then break; fi
             sleep 1
           done
-          curl -fsS http://127.0.0.1:8080/healthz | grep -qx ok
+          if ! curl -fsS http://127.0.0.1:8080/healthz | grep -qx ok; then
+            docker logs golang-smoke
+            exit 1
+          fi
           curl -fsS http://127.0.0.1:8080/ | grep -q 'Project Learning Lab'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/me)" = 401
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/metrics)" = 404
