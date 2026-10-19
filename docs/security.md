@@ -12,7 +12,7 @@ Use the public certificate in `pub-cert.pem` with `kubeseal --cert pub-cert.pem 
 
 The CI workflow scans commits with Gitleaks and checks configuration with Trivy. The SealedSecret manifests in `sealed-secrets/` are encrypted for this cluster; they are not a replacement for protecting the controller's private key.
 
-The learning platform's database and Keycloak bootstrap credentials belong in a namespace-scoped SealedSecret in `learning-lab`. Do not put their plaintext values in Helm values or an example file. The public Ingress serves learner sign-in endpoints and Keycloak's small third-party-cookie check page used by the admin console; the administration console and management port remain reachable only through a private port-forward.
+The learning platform's database and Keycloak bootstrap credentials belong in a namespace-scoped SealedSecret in `learning-lab`. Do not put their plaintext values in Helm values or an example file. The public Ingress serves learner sign-in endpoints and Keycloak's standard OpenID Connect endpoints for the `master` realm, which the admin console uses to sign in. Keycloak's administration console, management port, and admin API remain reachable only through a private port-forward.
 
 ## Changes to the cluster
 
