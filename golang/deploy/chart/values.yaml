@@ -2,7 +2,7 @@ nameOverride: learning-lab
 
 image:
   repository: egyhaty/golang
-  tag: "sha-f9c089d"
+  tag: "sha-65e8cc9"
   pullPolicy: IfNotPresent
 
 replicaCount: 2
