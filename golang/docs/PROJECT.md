@@ -21,7 +21,7 @@ The public course and registration page are available without an account. Create
 4. Sign in to `https://learn.murabba.net/` with that account. The Go service records the administrator role when it creates the account.
 5. Open **Admin** in the site, then rotate the Keycloak bootstrap password and store the new value with the cluster credentials.
 
-The public Ingress routes the learner realm and the `master` realm's OpenID Connect and login-action endpoints, which the admin console uses to sign in. It does not route Keycloak's administration console, admin API, or management port. Keep the port-forward open only while changing identity-provider settings.
+The public Ingress routes the learner realm and the `master` realm's OpenID Connect, login-action, and account endpoints, which the admin console uses to sign in and manage its account. It does not route Keycloak's administration console, admin API, or management port. Keep the port-forward open only while changing identity-provider settings.
 
 After the first administrator signs in, use the site's Admin page to promote or disable accounts. The Go service checks administrator access against PostgreSQL and writes each change to the audit table. A disabled account cannot use an existing session or sign in again.
 
