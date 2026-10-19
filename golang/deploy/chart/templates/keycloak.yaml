@@ -89,9 +89,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: keycloak
-          image: {{ .Values.keycloak.image | quote }}
-          imagePullPolicy: IfNotPresent
-          args: ["start", "--import-realm"]
+          image: "{{ .Values.keycloak.image.repository }}:{{ .Values.keycloak.image.tag }}"
+          imagePullPolicy: {{ .Values.keycloak.image.pullPolicy }}
+          args: ["start", "--optimized", "--import-realm"]
           env:
             - name: KC_DB
               value: postgres

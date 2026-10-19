@@ -22,7 +22,7 @@ The [node inventory](infrastructure/nodes.yaml) records the Kubernetes VM roles.
 
 ## Delivery and verification
 
-- GitHub Actions tests and smoke-tests Go and Node.js images, publishes commit-tagged images with signed build provenance, and promotes the tags through Helm values.
+- GitHub Actions tests and smoke-tests the Go and Node.js applications, builds an optimized Keycloak image, publishes the images with signed build provenance, and promotes their tags through Helm values.
 - Argo CD reconciles the promoted values and application manifests.
 - Post-deployment checks verify the learning site, sign-in routes, protected API, Node.js health, and Prometheus scrape targets. Application metrics are available to Prometheus inside the cluster, not on the public web route.
 - Pull-request validation covers Terraform, Helm, YAML, Kubernetes schemas, shell syntax and secret scanning.

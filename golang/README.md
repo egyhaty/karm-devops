@@ -21,4 +21,4 @@ The Keycloak administration console is not routed publicly. Use the port-forward
 
 ## Deployment
 
-The existing GitHub Actions workflow tests and builds the image. Argo CD deploys the Helm chart in `deploy/chart/`. PostgreSQL uses the cluster's Longhorn StorageClass. Database and bootstrap credentials are supplied as a SealedSecret and are not stored in Helm values.
+The existing GitHub Actions workflow tests and builds the Go image, then builds an optimized Keycloak image so it can start with a read-only root filesystem. Argo CD deploys the Helm chart in `deploy/chart/`. PostgreSQL uses the cluster's Longhorn StorageClass. Database and bootstrap credentials are supplied as a SealedSecret and are not stored in Helm values.

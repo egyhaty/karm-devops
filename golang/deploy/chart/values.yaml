@@ -43,7 +43,10 @@ postgres:
     limits: { cpu: "1", memory: 1Gi }
 
 keycloak:
-  image: quay.io/keycloak/keycloak:26.8.1
+  image:
+    repository: egyhaty/golang
+    tag: "keycloak-sha-65e8cc9"
+    pullPolicy: IfNotPresent
   resources:
     requests: { cpu: 250m, memory: 512Mi }
     limits: { cpu: "2", memory: 1536Mi }

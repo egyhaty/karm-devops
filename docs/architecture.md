@@ -1,6 +1,6 @@
 # Platform architecture
 
-Changes start in Git. GitHub Actions checks platform changes and tests and smoke-tests the Go learning platform and Node.js service. Successful images are tagged with the source commit, published with provenance, and promoted in Helm values. Argo CD watches `main` and applies the changes. Terraform manages selected platform releases; Argo CD owns the workloads.
+Changes start in Git. GitHub Actions checks platform changes, tests and smoke-tests the Go learning platform and Node.js service, and builds an optimized Keycloak image. Successful images are tagged with the source commit, published with provenance, and promoted in Helm values. Argo CD watches `main` and applies the changes. Terraform manages selected platform releases; Argo CD owns the workloads.
 
 ```mermaid
 flowchart LR
