@@ -19,8 +19,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: learning-lab
   syncPolicy:
-    syncOptions:
-      - CreateNamespace=true
     retry:
       limit: 5
       refresh: true
