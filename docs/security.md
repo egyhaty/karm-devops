@@ -12,6 +12,8 @@ Use the public certificate in `pub-cert.pem` with `kubeseal --cert pub-cert.pem 
 
 The CI workflow scans commits with Gitleaks and checks configuration with Trivy. The SealedSecret manifests in `sealed-secrets/` are encrypted for this cluster; they are not a replacement for protecting the controller's private key.
 
+The learning platform's database and Keycloak bootstrap credentials belong in a namespace-scoped SealedSecret in `learning-lab`. Do not put their plaintext values in Helm values or an example file. The public Ingress serves learner sign-in endpoints; Keycloak's administration console and management port remain reachable only from inside the cluster.
+
 ## Changes to the cluster
 
 Argo CD applies the configuration from `main`. For platform-file pull requests, the validation workflow checks Terraform, Helm rendering, Kubernetes schemas, shell and YAML syntax, and secrets. Review changes that affect network access, storage, or credentials. Terraform manages selected platform releases; Argo CD manages applications and Kubernetes resources.

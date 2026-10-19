@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#102c35">
+  <meta name="description" content="A guided beginner course following an application through CI, Helm, Argo CD, Kubernetes, networking, storage, and monitoring.">
+  <title>Kubernetes Platform | Project Learning Lab</title>
+  <link rel="stylesheet" href="site.css">
+  <script src="site.js" defer></script>
+  <script src="auth-client.js" defer></script>
+  <script src="progress-sync.js" defer></script>
+</head>
+<body class="course-page">
+  <header class="topbar course-topbar">
+    <a class="brand" href="index.html" aria-label="Project Learning Lab home"><span class="brand-mark" aria-hidden="true">P</span><span><b>Project Learning Lab</b><small>Kubernetes path · English + Arabic recaps</small></span></a>
+    <div class="course-tools"><div class="auth-actions" id="authActions"><a class="top-link" href="/auth/login">Sign in</a><a class="top-link" data-static href="/">Course home</a></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="course-search" type="search" placeholder="Search this course" aria-label="Search lessons"></label><button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="courseNav">Lessons</button></div>
+  </header>
+  <div class="course-shell">
+    <section class="course-hero"><div class="course-hero-copy"><p class="eyebrow"><span class="status-dot"></span> THE GUIDED PATH <span class="eyebrow-separator">/</span> START HERE</p><h1>From one code change<br>to a service people can use.</h1><p>We will follow one application through the platform. First understand the idea, then see the project example, then practise saying it in your own words.</p><div class="hero-meta"><span>13 short lessons</span><span>Beginner friendly</span><span>About 2.5 hours</span></div><p class="arabic-note hero-ar" lang="ar" dir="rtl"><b>ملخص بالعربي:</b> هنمشي ورا تغيير واحد في الكود لحد ما يبقى خدمة شغّالة ونقدر نراقبها.</p></div><div class="journey" aria-label="Code change journey"><div class="journey-step"><span>01</span><b>Change</b><small>source code</small></div><i></i><div class="journey-step"><span>02</span><b>Build</b><small>container image</small></div><i></i><div class="journey-step"><span>03</span><b>Deploy</b><small>Kubernetes</small></div><i></i><div class="journey-step"><span>04</span><b>Operate</b><small>observe & improve</small></div></div></section>
+    <section class="course-status panel"><div class="status-title"><div><p class="eyebrow dark-eyebrow">Your progress</p><strong id="courseProgressText">Start with lesson 1</strong></div><a class="quiet-link" href="#lesson-01">Go to the first lesson ↑</a></div><progress id="courseProgress" max="13" value="0" aria-label="Lessons completed"></progress><div class="status-foot"><span id="course-progress-detail">0 of 13 lessons complete</span><span>Sign in to sync across devices</span></div></section>
+    <div class="course-layout"><aside class="course-nav" id="courseNav" aria-label="Course lessons"><div class="nav-heading"><p class="eyebrow dark-eyebrow">Course contents</p><strong>Follow the path</strong><small>13 lessons · in order</small></div><nav id="lessonLinks"></nav><div class="nav-help"><span>Need a quick reminder?</span><a href="#glossary">Open the mini glossary ↓</a></div></aside><main class="lesson-content" id="lesson-content" aria-label="Course lessons"></main></div>
+  </div>
+
+</body>
+</html>

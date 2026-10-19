@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: learning-lab
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: learning-lab-learning-lab-rate-limit@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [{{ .Values.host | quote }}]
+      secretName: {{ .Values.tlsSecretName }}
+  rules:
+    - host: {{ .Values.host | quote }}
+      http:
+        paths:
+          - path: /auth/realms/{{ .Values.oidc.realm }}
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
+          - path: /auth/resources
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: learning-lab
+                port:
+                  name: web
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: learning-lab
+                port:
+                  name: web
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: learning-lab-rate-limit
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+spec:
+  rateLimit:
+    average: 120
+    period: 1m
+    burst: 40

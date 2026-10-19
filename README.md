@@ -15,21 +15,21 @@ A three-node Kubernetes lab for practicing infrastructure changes, GitOps delive
 | GitOps | Argo CD HA profile and app-of-apps |
 | Persistent storage | Longhorn 1.13.0; three replicas per volume |
 | Observability | Prometheus, Grafana, Alertmanager, node and Kubernetes metrics |
-| Workloads | Go and Node.js applications deployed with Helm |
+| Workloads | Go learning platform with self-hosted accounts and progress storage, plus a Node.js service |
 | Infrastructure | Terraform-managed Helm releases and adopted Terraform state |
 
 The [node inventory](infrastructure/nodes.yaml) records the Kubernetes VM roles. The shared ingress/API address is a service address, not a node address. See [architecture](docs/architecture.md) for the delivery flow and [operations](docs/operations.md) for maintenance procedures.
 
 ## Delivery and verification
 
-- GitHub Actions builds and smoke-tests Go and Node.js images, publishes commit-tagged images with signed build provenance, and promotes the tags through Helm values.
+- GitHub Actions tests and smoke-tests Go and Node.js images, publishes commit-tagged images with signed build provenance, and promotes the tags through Helm values.
 - Argo CD reconciles the promoted values and application manifests.
-- Post-deployment checks verify the public application health and metrics routes. Authenticated Prometheus target checks are enabled by the `PROMETHEUS_BASIC_AUTH` GitHub Actions secret.
+- Post-deployment checks verify the learning site, sign-in routes, protected API, Node.js health, and Prometheus scrape targets. Application metrics are available to Prometheus inside the cluster, not on the public web route.
 - Pull-request validation covers Terraform, Helm, YAML, Kubernetes schemas, shell syntax and secret scanning.
 
-The two apps stay intentionally small and expose the same health and metrics routes. That keeps the focus on comparing image builds, Helm deployments and Prometheus scraping across Go and Node.js.
+The Go application serves the learning site and its account API. Keycloak handles sign-in and PostgreSQL stores accounts, sessions, administration changes, and lesson progress; both run inside Kubernetes. Course content stays public, while sign-in syncs progress between devices. The Node.js service remains a separate workload and CI example.
 
-The architecture guide includes a traceable delivery example from source commit through image promotion and GitOps reconciliation. Verify published image provenance with `gh attestation verify oci://docker.io/egyhaty/golang@sha256:<digest> --repo egyhaty/karm-devops` (replace the digest with the published image digest).
+Verify a published Go image's provenance with `gh attestation verify oci://docker.io/egyhaty/golang@sha256:<digest> --repo egyhaty/karm-devops` (replace the digest with the published image digest).
 
 ## Storage and recovery
 
@@ -42,7 +42,7 @@ Longhorn sends daily volume backups to an external SMB/CIFS share and keeps the 
 - [Argo CD](https://argocd.murabba.net/)
 - [Grafana](https://grafana.murabba.net/)
 - [Prometheus](https://prometheus.murabba.net/) — Basic Auth is enabled.
-- [Go application](https://go.murabba.net/)
+- [Learning platform](https://learn.murabba.net/)
 - [Node.js application](https://node.murabba.net/)
 
 Grafana redirects unauthenticated users to login. Prometheus returns HTTP 401 without Basic Auth; these are expected responses.
@@ -51,8 +51,10 @@ Grafana redirects unauthenticated users to login. Prometheus returns HTTP 401 wi
 
 ```bash
 bash scripts/validate-platform.sh
-helm lint charts -f charts/values-go.yaml
 helm lint charts -f charts/values-node.yaml
+helm lint golang/deploy/chart
+go -C golang test ./...
+go -C golang vet ./...
 bash -n scripts/*.sh
 bash scripts/render-platform.sh
 terraform -chdir=terraform init -backend=false

@@ -1,0 +1,170 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "learning-lab.name" . }}-realm
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+    app.kubernetes.io/component: identity
+data:
+  learning-lab-realm.json: |
+    {
+      "realm": "{{ .Values.oidc.realm }}",
+      "enabled": true,
+      "displayName": "Learning Lab",
+      "registrationAllowed": true,
+      "registrationEmailAsUsername": true,
+      "loginWithEmailAllowed": true,
+      "duplicateEmailsAllowed": false,
+      "resetPasswordAllowed": false,
+      "passwordPolicy": "length(14) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1)",
+      "verifyEmail": false,
+      "bruteForceProtected": true,
+      "permanentLockout": false,
+      "maxFailureWaitSeconds": 900,
+      "failureFactor": 5,
+      "waitIncrementSeconds": 60,
+      "roles": { "realm": [{ "name": "platform-admin", "description": "Learning Lab platform administrator" }] },
+      "clients": [{
+        "clientId": "{{ .Values.oidc.clientId }}",
+        "name": "Learning Lab web",
+        "enabled": true,
+        "protocol": "openid-connect",
+        "publicClient": true,
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": false,
+        "serviceAccountsEnabled": false,
+        "redirectUris": ["https://{{ .Values.host }}/api/auth/callback"],
+        "webOrigins": ["https://{{ .Values.host }}"],
+        "attributes": { "pkce.code.challenge.method": "S256" },
+        "defaultClientScopes": ["profile", "email", "roles", "web-origins"]
+      }]
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+    app.kubernetes.io/component: identity
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "learning-lab.name" . }}-keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: management
+      port: 9000
+      targetPort: management
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "learning-lab.name" . }}-keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "learning-lab.name" . }}-keycloak
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: identity
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 0
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keycloak
+          image: {{ .Values.keycloak.image | quote }}
+          imagePullPolicy: IfNotPresent
+          args: ["start", "--import-realm"]
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: jdbc:postgresql://postgres:5432/learning?currentSchema=keycloak
+            - name: KC_DB_USERNAME
+              value: learning_keycloak
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: keycloak-db-password
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_HTTP_RELATIVE_PATH
+              value: /auth
+            - name: KC_HOSTNAME
+              value: https://{{ .Values.host }}/auth
+            - name: KC_HOSTNAME_ADMIN
+              value: http://localhost:18080/auth
+            - name: KC_HOSTNAME_STRICT
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: xforwarded
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_METRICS_ENABLED
+              value: "true"
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: keycloak-bootstrap-username
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: keycloak-bootstrap-password
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: management
+              containerPort: 9000
+          startupProbe:
+            httpGet:
+              path: /health/started
+              port: management
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: management
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: management
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.keycloak.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: realm
+              mountPath: /opt/keycloak/data/import/learning-lab-realm.json
+              subPath: learning-lab-realm.json
+              readOnly: true
+      volumes:
+        - name: realm
+          configMap:
+            name: {{ include "learning-lab.name" . }}-realm

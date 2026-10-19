@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: learning-lab-dashboard
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  learning-lab.json: |
+    {
+      "uid": "learning-lab",
+      "title": "Learning Lab",
+      "tags": ["application", "learning-lab"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "panels": [
+        {"id":1,"type":"stat","title":"HTTP requests / sec","gridPos":{"x":0,"y":0,"w":8,"h":5},"targets":[{"expr":"sum(rate(learning_lab_http_requests_total[5m]))","refId":"A"}]},
+        {"id":2,"type":"timeseries","title":"Request rate by route","gridPos":{"x":8,"y":0,"w":16,"h":9},"targets":[{"expr":"sum by (route) (rate(learning_lab_http_requests_total[5m]))","legendFormat":"{{`{{route}}`}}","refId":"A"}]},
+        {"id":3,"type":"timeseries","title":"Request duration p95","gridPos":{"x":0,"y":5,"w":8,"h":9},"targets":[{"expr":"histogram_quantile(0.95, sum by (le) (rate(learning_lab_http_request_duration_seconds_bucket[5m])))","refId":"A"}]},
+        {"id":4,"type":"timeseries","title":"Application memory","gridPos":{"x":0,"y":14,"w":12,"h":8},"targets":[{"expr":"process_resident_memory_bytes{pod=~\"learning-lab.*\"}","legendFormat":"{{`{{pod}}`}}","refId":"A"}]},
+        {"id":5,"type":"timeseries","title":"Target availability","gridPos":{"x":12,"y":14,"w":12,"h":8},"targets":[{"expr":"up{namespace=\"learning-lab\"}","legendFormat":"{{`{{service}}`}}","refId":"A"}]}
+      ]
+    }

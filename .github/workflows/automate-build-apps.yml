@@ -114,6 +114,16 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: golang/go.mod
+          cache-dependency-path: golang/go.sum
+      - name: Test Go application
+        working-directory: golang
+        run: |
+          go test ./...
+          go vet ./...
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Login to Docker Hub
@@ -138,16 +148,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          trap 'docker rm -f golang-smoke >/dev/null 2>&1 || true' EXIT
-          docker run -d --name golang-smoke -p 127.0.0.1:8080:8080 -e APP_VERSION="$APP_TAG" "$IMAGE"
+          trap 'docker rm -f golang-smoke golang-smoke-db >/dev/null 2>&1 || true; docker network rm golang-smoke-network >/dev/null 2>&1 || true' EXIT
+          docker network create golang-smoke-network
+          docker run -d --name golang-smoke-db --network golang-smoke-network \
+            -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=learning \
+            --health-cmd='pg_isready -U postgres -d learning' --health-interval=2s \
+            --health-timeout=2s --health-retries=30 postgres:18.6-alpine
+          for attempt in {1..60}; do
+            if docker inspect -f '{{.State.Health.Status}}' golang-smoke-db | grep -qx healthy; then break; fi
+            sleep 1
+          done
+          docker run -d --name golang-smoke --network golang-smoke-network \
+            -p 127.0.0.1:8080:8080 -p 127.0.0.1:9090:9090 \
+            -e APP_VERSION="$APP_TAG" -e DATABASE_URL='postgres://postgres:postgres@golang-smoke-db:5432/learning?sslmode=disable' \
+            -e OIDC_ISSUER='https://learn.example.test/auth/realms/learning-lab' \
+            -e OIDC_INTERNAL_ISSUER='http://keycloak:8080/auth/realms/learning-lab' \
+            -e OIDC_CLIENT_ID=learning-lab-web -e OIDC_CALLBACK_URL='https://learn.example.test/api/auth/callback' \
+            -e COOKIE_SECURE=false "$IMAGE"
           for attempt in {1..30}; do
             if curl -fsS http://127.0.0.1:8080/healthz; then break; fi
             sleep 1
           done
           curl -fsS http://127.0.0.1:8080/healthz | grep -qx ok
-          curl -fsS http://127.0.0.1:8080/ | grep -Fx "version=$APP_TAG"
-          curl -fsS http://127.0.0.1:8080/metrics -o /tmp/metrics-8080.txt
-          grep -q '^http_requests_total' /tmp/metrics-8080.txt
+          curl -fsS http://127.0.0.1:8080/ | grep -q 'Project Learning Lab'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/me)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/metrics)" = 404
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:9090/metrics -o /tmp/metrics-9090.txt; then break; fi
+            sleep 1
+          done
+          grep -q '^learning_lab_http_requests_total' /tmp/metrics-9090.txt
+          curl -fsSI http://127.0.0.1:8080/ | grep -qi "content-security-policy:.*script-src 'self'"
+          docker rm -f golang-smoke-db >/dev/null
+          docker network rm golang-smoke-network >/dev/null
       - name: Scan Go image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -195,7 +228,7 @@ jobs:
         env:
           SHORT_SHA: ${{ needs.prepare.outputs.short_sha }}
         run: |
-          for file in charts/values-node.yaml charts/values-go.yaml; do
+          for file in charts/values-node.yaml golang/deploy/chart/values.yaml; do
             sed -i -E \
               "s|^([[:space:]]*tag:[[:space:]]*).*|\1\"sha-${SHORT_SHA}\"|" \
               "$file"
@@ -206,7 +239,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add charts/values-node.yaml charts/values-go.yaml
+          git add charts/values-node.yaml golang/deploy/chart/values.yaml
           if git diff --cached --quiet; then
             echo "No image tag changes to commit"
             exit 0

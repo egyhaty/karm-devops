@@ -2,7 +2,7 @@
 
 ## CrashLoopBackOff
 
-For `golang` or `nodejs` in `default`, check the current and previous container logs, then compare the pod's image and environment with the latest Helm values.
+For `golang` in `learning-lab` or `nodejs` in `default`, check the current and previous container logs, then compare the pod's image and environment with the latest Helm values.
 
 ```bash
 kubectl describe pod <pod> -n <namespace>

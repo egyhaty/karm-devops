@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "learning-lab.name" . }}
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.tlsSecretName }}
+  issuerRef:
+    name: {{ .Values.certificate.issuerName }}
+    kind: ClusterIssuer
+  dnsNames:
+    - {{ .Values.host | quote }}

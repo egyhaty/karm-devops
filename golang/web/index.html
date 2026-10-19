@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#102c35">
+  <meta name="description" content="Beginner-friendly, hands-on learning paths built around real projects, with short Arabic takeaways.">
+  <title>Project Learning Lab | Start here</title>
+  <link rel="stylesheet" href="site.css">
+  <script src="site.js" defer></script>
+  <script src="auth-client.js" defer></script>
+  <script src="progress-sync.js" defer></script>
+</head>
+<body class="home-page">
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="Project Learning Lab home">
+      <span class="brand-mark" aria-hidden="true">K</span>
+      <span><b>Project Learning Lab</b><small>Learn each project. Explain it clearly.</small></span>
+    </a>
+    <div class="header-actions" id="authActions"><a class="button button-secondary" href="/auth/login">Create account or sign in</a><a class="top-link" data-static href="course.html#lesson-01">Open the learning path <span aria-hidden="true">↗</span></a></div>
+  </header>
+
+  <main class="home-wrap">
+    <section class="home-hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="status-dot"></span> CURRENT PATH · KUBERNETES PLATFORM</p>
+        <h1>Go from “I’ve seen these tools” to <em>“I can explain how they work together.”</em></h1>
+        <p class="hero-lede">Start with the big picture. Then follow one application from a code change to a running, observable service. Each lesson introduces one idea, shows where it appears in the project, and gives you a small way to practise it.</p>
+        <div class="hero-actions"><a class="button button-primary" href="course.html#lesson-01">Start with lesson 1 <span aria-hidden="true">→</span></a><a class="text-link" href="course.html#course-map">See the course map</a></div>
+        <p class="arabic-note hero-ar" lang="ar" dir="rtl"><b>بالعربي:</b> هنبدأ بالصورة الكبيرة، وبعدها نمشي مع التطبيق خطوة خطوة لحد ما تقدر تشرح كل جزء بنفسك.</p>
+      </div>
+      <div class="hero-visual" aria-label="A simplified view of the delivery path">
+        <div class="visual-orbit orbit-one"></div><div class="visual-orbit orbit-two"></div>
+        <div class="visual-core"><span class="core-mark">K</span><strong>One change</strong><small>many clear steps</small></div>
+        <div class="float-card card-commit"><span class="mini-icon">01</span><span><b>Code</b><small>commit</small></span></div>
+        <div class="float-card card-delivery"><span class="mini-icon">02</span><span><b>Delivery</b><small>build → sync</small></span></div>
+        <div class="float-card card-running"><span class="mini-icon">03</span><span><b>Running</b><small>route → observe</small></span></div>
+        <span class="visual-line line-a"></span><span class="visual-line line-b"></span>
+      </div>
+    </section>
+
+    <section class="home-progress panel" aria-labelledby="progress-heading">
+      <div class="progress-copy"><div><p class="eyebrow dark-eyebrow">Your study space</p><h2 id="progress-heading">Pick up where you left off</h2><p id="home-progress">Your progress is saved in this browser on this device.</p></div><a class="button button-secondary" id="continue-link" href="course.html#lesson-01">Continue learning <span aria-hidden="true">→</span></a></div>
+      <div class="progress-meter"><progress id="home-progress-bar" max="13" value="0" aria-label="Course lessons completed"></progress><span id="home-progress-count">0 of 13 lessons</span></div>
+    </section>
+
+    <section class="value-row" aria-label="How this course works">
+      <article><span class="value-number">01</span><div><h3>One idea at a time</h3><p>Plain English first. New terms are explained before they are used.</p></div></article>
+      <article><span class="value-number">02</span><div><h3>Always tied to the project</h3><p>See which file or platform component makes the idea real.</p></div></article>
+      <article><span class="value-number">03</span><div><h3>Practise explaining it</h3><p>Short exercises help you build answers you can say in an interview.</p></div></article>
+    </section>
+
+    <section id="course-map" class="path-section">
+      <div class="section-heading"><div><p class="eyebrow dark-eyebrow">Current learning path</p><h2>Build the picture in 13 small steps</h2><p>Work from top to bottom. Each lesson explains one idea, connects it to the project, and gives you something to practise.</p></div><span class="path-total">13 lessons <i>·</i> about 2.5 hours</span></div>
+      <div class="path-grid">
+        <a class="path-card" href="course.html#lesson-01"><span class="path-index">01</span><span class="path-content"><b>Start with the story</b><small>What are we building, and why?</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-02"><span class="path-index">02</span><span class="path-content"><b>Meet the machines</b><small>VMs, Linux, and the cluster</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-03"><span class="path-index">03</span><span class="path-content"><b>Understand containers</b><small>Images, containers, and registries</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-04"><span class="path-index">04</span><span class="path-content"><b>Meet Kubernetes</b><small>Control plane, nodes, and reconciliation</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-05"><span class="path-index">05</span><span class="path-content"><b>Run an application</b><small>Pods, Deployments, and Services</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-06"><span class="path-index">06</span><span class="path-content"><b>Build with CI</b><small>What GitHub Actions does</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-07"><span class="path-index">07</span><span class="path-content"><b>Read Helm</b><small>Values, templates, and releases</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-08"><span class="path-index">08</span><span class="path-content"><b>Follow GitOps</b><small>Argo CD and the desired state</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-09"><span class="path-index">09</span><span class="path-content"><b>Trace a web request</b><small>DNS, Traefik, Services, and Pods</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-10"><span class="path-index">10</span><span class="path-content"><b>Keep data safe</b><small>PVCs, Longhorn, and backups</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-11"><span class="path-index">11</span><span class="path-content"><b>See what is happening</b><small>Prometheus, Grafana, and alerts</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card" href="course.html#lesson-12"><span class="path-index">12</span><span class="path-content"><b>Know who owns what</b><small>Terraform, Argo CD, and secrets</small></span><span class="path-arrow">↗</span></a>
+        <a class="path-card path-card-final" href="course.html#lesson-13"><span class="path-index">13</span><span class="path-content"><b>Diagnose and explain</b><small>A guided incident and interview practice</small></span><span class="path-arrow">↗</span></a>
+      </div>
+    </section>
+
+    <section class="home-note"><div class="note-mark">i</div><div><h2>Made for learning, not memorising</h2><p>You do not need to know Kubernetes before you begin. If a lesson feels unfamiliar, use its “Start here” box and follow the small steps. The Arabic recap is there to make the main point quick to review; the full lesson and interview practice are in English.</p><p>This is the first path in a growing project library. New projects can have their own lessons, examples, and practice without mixing their details into this Kubernetes path.</p><p class="arabic-note" lang="ar" dir="rtl"><b>ملخص بالعربي:</b> مش مطلوب تحفظ أسماء الأدوات. افهم المشكلة، واعرف كل أداة بتعمل إيه، وبعدها اتدرّب تحكي الرحلة بالإنجليزي.</p></div></section>
+    <footer class="home-footer"><span>Project Learning Lab</span><span>English lessons · Arabic quick recaps · account progress syncs when you sign in</span></footer>
+  </main>
+
+</body>
+</html>

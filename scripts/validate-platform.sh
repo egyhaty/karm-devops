@@ -106,10 +106,18 @@ require "$monitoring_values" '.alertmanager.alertmanagerSpec.storage.volumeClaim
 require "$monitoring_values" '.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage == "2Gi"' "Alertmanager PVC must request 2Gi"
 
 for app in golang nodejs; do
-  if [[ "$app" == "golang" ]]; then values=charts/values-go.yaml; else values=charts/values-node.yaml; fi
+  if [[ "$app" == "golang" ]]; then
+    values=golang/deploy/chart/values.yaml
+    minimum_required=2
+    disruption_budget_required=1
+  else
+    values=charts/values-node.yaml
+    minimum_required=3
+    disruption_budget_required=2
+  fi
   minimum=$(yq -r '.scaling.min' "$values"); maximum=$(yq -r '.scaling.max' "$values"); min_available=$(yq -r '.pdb.minAvailable' "$values")
-  ((minimum >= 3 && maximum >= minimum)) || fail "$app scaling bounds are invalid"
-  ((min_available >= 2 && min_available < minimum)) || fail "$app PDB would block voluntary maintenance"
+  ((minimum >= minimum_required && maximum >= minimum)) || fail "$app scaling bounds are invalid"
+  ((min_available >= disruption_budget_required && min_available < minimum)) || fail "$app PDB would block voluntary maintenance"
   require "$values" '.topologySpreadConstraints[0].topologyKey == "kubernetes.io/hostname"' "$app must spread pods by hostname"
   require "$values" '.topologySpreadConstraints[0].maxSkew == 1' "$app pod spread maxSkew must be 1"
   mapfile -t rollout_keys < <(yq -r '.topologySpreadConstraints[0].matchLabelKeys[]' "$values")

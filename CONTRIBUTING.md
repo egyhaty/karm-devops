@@ -12,8 +12,8 @@ bash -n scripts/*.sh
 terraform -chdir=terraform fmt -check -recursive
 terraform -chdir=terraform init -backend=false
 terraform -chdir=terraform validate
-helm lint charts -f charts/values-go.yaml
 helm lint charts -f charts/values-node.yaml
+helm lint golang/deploy/chart
 ```
 
 The workflow also renders the Kubernetes resources, checks their schemas, and scans for secrets. Application image builds and container smoke tests currently run after changes are merged to `main`.

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "learning-lab.name" . }}-postgres-init
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+data:
+  01-create-roles.sh: |
+    #!/bin/sh
+    set -eu
+    case "${APP_DB_PASSWORD}${KEYCLOAK_DB_PASSWORD}" in
+      *[!a-fA-F0-9]*) echo "database passwords must be generated as hexadecimal values" >&2; exit 1 ;;
+    esac
+    psql --set=ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<SQL
+    CREATE ROLE learning_app WITH LOGIN PASSWORD '${APP_DB_PASSWORD}';
+    CREATE ROLE learning_keycloak WITH LOGIN PASSWORD '${KEYCLOAK_DB_PASSWORD}';
+    CREATE SCHEMA app AUTHORIZATION learning_app;
+    CREATE SCHEMA keycloak AUTHORIZATION learning_keycloak;
+    REVOKE ALL ON DATABASE learning FROM PUBLIC;
+    GRANT CONNECT ON DATABASE learning TO learning_app, learning_keycloak;
+    SQL

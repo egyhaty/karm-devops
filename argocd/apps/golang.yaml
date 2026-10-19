@@ -10,20 +10,17 @@ spec:
   source:
     repoURL: https://github.com/egyhaty/karm-devops.git
     targetRevision: main
-    path: charts
+    path: golang/deploy/chart
     helm:
       releaseName: golang
       valueFiles:
         - values.yaml
-        - values-go.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: learning-lab
   syncPolicy:
-    automated:
-      enabled: true
-      prune: true
-      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
     retry:
       limit: 5
       refresh: true

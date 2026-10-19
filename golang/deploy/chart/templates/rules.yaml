@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: learning-lab
+  labels:
+    {{- include "learning-lab.labels" . | nindent 4 }}
+    release: {{ .Values.serviceMonitor.release }}
+spec:
+  groups:
+    - name: learning-lab.application
+      rules:
+        - alert: LearningLabTargetDown
+          expr: up{service=~"learning-lab.*"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Learning Lab target is down
+            description: A Learning Lab application or identity endpoint has not been scrapeable for five minutes.
+        - alert: LearningLabHighErrorRate
+          expr: sum(rate(learning_lab_http_requests_total{status=~"Internal Server Error|Bad Gateway|Service Unavailable"}[5m])) / clamp_min(sum(rate(learning_lab_http_requests_total[5m])), 0.001) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Learning Lab server errors are elevated
+            description: More than five percent of Learning Lab API requests returned a server error for ten minutes.

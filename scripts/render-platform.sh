@@ -4,9 +4,9 @@ set -euo pipefail
 mkdir -p rendered rendered/crds schemas
 KUBERNETES_VERSION="$(yq -r '.cluster.kubernetesVersion | sub("^v"; "")' infrastructure/nodes.yaml)"
 CILIUM_VERSION="$(yq -r '.cluster.ciliumVersion' infrastructure/nodes.yaml)"
-helm lint charts -f charts/values-go.yaml
 helm lint charts -f charts/values-node.yaml
-helm template golang charts -f charts/values-go.yaml > rendered/golang.yaml
+helm lint golang/deploy/chart
+helm template golang golang/deploy/chart --namespace learning-lab > rendered/golang.yaml
 helm template nodejs charts -f charts/values-node.yaml > rendered/nodejs.yaml
 helm repo add cilium https://helm.cilium.io --force-update
 helm repo add traefik https://traefik.github.io/charts --force-update

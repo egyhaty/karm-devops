@@ -4,7 +4,7 @@ Commands below use the namespaces and workload names in this cluster. Start with
 
 ## Initial response
 
-1. Check whether the issue affects `golang`, `nodejs`, monitoring, or the cluster itself.
+1. Check whether the issue affects the learning platform in `learning-lab`, `nodejs`, monitoring, or the cluster itself.
 2. Check the Argo CD application status and recent Git changes.
 3. Use events and pod logs to identify the failing component.
 4. If a rollout caused the issue, revert the Git change and watch Argo CD reconcile it.
@@ -17,6 +17,7 @@ kubectl get pods -A
 kubectl get events -A --sort-by=.lastTimestamp
 kubectl get nodes
 kubectl get applications -n argocd
+kubectl get deployments -n learning-lab
 kubectl get deployments -n default
 kubectl get pods -n monitoring
 kubectl describe pod <pod> -n <namespace>
@@ -32,7 +33,7 @@ kubectl rollout history deployment/<name> -n <namespace>
 - Verify image name, tag, registry access, probes, resources, and configuration.
 - Compare the change with the last known-good Git revision.
 - Revert the Git change and confirm Argo CD has rolled back the workload.
-- Check the public `/healthz` and `/metrics` routes after the rollout.
+- Check the public `/healthz` and sign-in routes after the rollout. Confirm metrics through Prometheus targets; the application metrics port is private to the cluster.
 
 ## Node pressure
 

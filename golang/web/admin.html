@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#102c35">
+  <title>Administration | Learning Lab</title>
+  <link rel="stylesheet" href="site.css">
+  <script src="admin.js" defer></script>
+</head>
+<body class="home-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Learning Lab home"><span class="brand-mark" aria-hidden="true">L</span><span><b>Learning Lab</b><small>Administration</small></span></a>
+    <div class="header-actions"><a class="top-link" href="/">Back to learning</a><span id="adminIdentity" class="top-link"></span></div>
+  </header>
+  <main class="home-wrap">
+    <section class="section-heading"><div><p class="eyebrow dark-eyebrow">PLATFORM MANAGEMENT</p><h1>Learning Lab administration</h1><p>Manage learner access and review progress. Changes apply to the account service immediately.</p></div></section>
+    <p id="adminMessage" role="status" aria-live="polite"></p>
+    <section class="value-row" aria-label="Platform overview">
+      <article><span class="value-number">01</span><div><h3 id="totalUsers">—</h3><p>Registered learners</p></div></article>
+      <article><span class="value-number">02</span><div><h3 id="activeUsers">—</h3><p>Active accounts</p></div></article>
+      <article><span class="value-number">03</span><div><h3 id="completedLessons">—</h3><p>Completed lesson records</p></div></article>
+      <article><span class="value-number">04</span><div><h3 id="activeAdmins">—</h3><p>Active administrators</p></div></article>
+    </section>
+    <section class="panel admin-table-wrap">
+      <h2>Recent account changes</h2>
+      <table id="auditTable">
+        <thead><tr><th scope="col">When</th><th scope="col">Changed by</th><th scope="col">Account</th><th scope="col">Change</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p id="auditEmpty">No account changes have been recorded.</p>
+    </section>
+    <section class="panel admin-table-wrap">
+      <h2>Accounts</h2>
+      <table id="usersTable">
+        <thead><tr><th scope="col">Learner</th><th scope="col">Last active</th><th scope="col">Lessons</th><th scope="col">Administrator</th><th scope="col">Disabled</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+    <p class="arabic-note" lang="ar" dir="rtl"><b>ملخص بالعربي:</b> الصفحة دي للأدمن فقط. تقدر تتابع الحسابات، توقف حساب، أو تمنح صلاحية أدمن لمستخدم. الـAPI بيتحقق من الصلاحية قبل تنفيذ أي تغيير.</p>
+  </main>
+</body>
+</html>

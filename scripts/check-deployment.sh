@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GO_URL="${GO_URL:-https://go.murabba.net}"
+GO_URL="${GO_URL:-https://learn.murabba.net}"
 NODE_URL="${NODE_URL:-https://node.murabba.net}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-https://prometheus.murabba.net}"
 metrics_file="$(mktemp)"
 trap 'rm -f "$metrics_file"' EXIT
 
-check_app() {
+check_health() {
   local name="$1" base="$2" attempt
   for attempt in {1..15}; do
     if curl --fail --silent --show-error --max-time 10 "$base/healthz" | grep -qx 'ok'; then
@@ -20,6 +20,33 @@ check_app() {
     sleep 20
   done
 
+  echo "$name health endpoint is healthy"
+}
+
+check_learning_lab() {
+  local base="$1" issuer="$1/auth/realms/learning-lab/.well-known/openid-configuration" metadata page api_status metrics_status attempt
+  check_health "Learning Lab" "$base"
+  for attempt in {1..15}; do
+    page="$(curl --fail --silent --max-time 10 "$base/" 2>/dev/null || true)"
+    api_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/api/me" 2>/dev/null || true)"
+    metrics_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/metrics" 2>/dev/null || true)"
+    metadata="$(curl --fail --silent --max-time 10 "$issuer" 2>/dev/null || true)"
+    if grep -q 'Project Learning Lab' <<<"$page" && [[ "$api_status" == 401 && "$metrics_status" == 404 ]] &&
+      jq -e --arg issuer "$base/auth/realms/learning-lab" '.issuer == $issuer and (.authorization_endpoint | startswith($issuer))' <<<"$metadata" >/dev/null 2>&1; then
+      break
+    fi
+    if (( attempt == 15 )); then
+      echo "::error::Learning Lab routes did not become ready with protected API and expected identity metadata"
+      return 1
+    fi
+    sleep 20
+  done
+  echo "Learning Lab home, protected API, and identity routes are healthy"
+}
+
+check_node() {
+  local name="Node.js" base="$1" metrics_file="$2"
+  check_health "Node.js" "$base"
   curl --fail --silent --show-error --max-time 10 "$base/" -o /dev/null
   curl --fail --silent --show-error --max-time 10 "$base/metrics" -o "$metrics_file"
   grep -q '^# TYPE ' "$metrics_file" || {
@@ -29,8 +56,8 @@ check_app() {
   echo "$name public health and metrics routes are healthy"
 }
 
-check_app "Go" "$GO_URL"
-check_app "Node.js" "$NODE_URL"
+check_learning_lab "$GO_URL"
+check_node "$NODE_URL" "$metrics_file"
 
 # The public Prometheus endpoint uses Basic Auth. Configure the value as the
 # GitHub Actions secret PROMETHEUS_BASIC_AUTH (username:password) to inspect
@@ -46,10 +73,10 @@ targets="$(curl --fail --silent --show-error --max-time 15 \
 
 jq -e '
   .status == "success" and
-  ([.data.activeTargets[]? | select(.labels.job == "golang") | select(.health == "up")] | length > 0) and
+  ([.data.activeTargets[]? | select(.labels.job == "learning-lab") | select(.health == "up")] | length > 0) and
   ([.data.activeTargets[]? | select(.labels.job == "nodejs") | select(.health == "up")] | length > 0)
 ' <<<"$targets" >/dev/null || {
-  echo "::error::Prometheus does not report healthy Go and Node.js application scrape targets"
+  echo "::error::Prometheus does not report healthy Learning Lab and Node.js application scrape targets"
   exit 1
 }
-echo "Prometheus reports healthy Go and Node.js application scrape targets"
+echo "Prometheus reports healthy Learning Lab and Node.js application scrape targets"

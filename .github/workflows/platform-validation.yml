@@ -14,6 +14,7 @@ on:
       - 'traefik/**'
       - 'networking/**'
       - 'infrastructure/**'
+      - 'golang/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -33,6 +34,7 @@ on:
       - 'traefik/**'
       - 'networking/**'
       - 'infrastructure/**'
+      - 'golang/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -74,8 +76,8 @@ jobs:
           version: v4.3.1
       - name: Lint application values
         run: |
-          helm lint charts -f charts/values-go.yaml
           helm lint charts -f charts/values-node.yaml
+          helm lint golang/deploy/chart
 
   yaml:
     name: Bash and YAML validation
