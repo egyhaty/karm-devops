@@ -90,6 +90,7 @@ spec:
             {{- toYaml .Values.postgres.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
             seccompProfile:
@@ -97,11 +98,21 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql
+            - name: tmp
+              mountPath: /tmp
+            - name: run
+              mountPath: /var/run/postgresql
             - name: init
               mountPath: /docker-entrypoint-initdb.d/01-create-roles.sh
               subPath: 01-create-roles.sh
               readOnly: true
       volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: run
+          emptyDir:
+            sizeLimit: 16Mi
         - name: init
           configMap:
             name: {{ include "learning-lab.name" . }}-postgres-init

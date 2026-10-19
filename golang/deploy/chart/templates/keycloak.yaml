@@ -83,7 +83,8 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
-        runAsGroup: 0
+        runAsGroup: 1000
+        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -157,14 +158,24 @@ spec:
             {{- toYaml .Values.keycloak.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
           volumeMounts:
+            - name: data
+              mountPath: /opt/keycloak/data
+            - name: tmp
+              mountPath: /tmp
             - name: realm
-              mountPath: /opt/keycloak/data/import/learning-lab-realm.json
-              subPath: learning-lab-realm.json
+              mountPath: /opt/keycloak/data/import
               readOnly: true
       volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
         - name: realm
           configMap:
             name: {{ include "learning-lab.name" . }}-realm
