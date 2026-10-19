@@ -2,7 +2,7 @@ nameOverride: learning-lab
 
 image:
   repository: egyhaty/golang
-  tag: "sha-6e63ab2"
+  tag: "sha-053d437"
   pullPolicy: IfNotPresent
 
 replicaCount: 2
@@ -45,7 +45,7 @@ postgres:
 keycloak:
   image:
     repository: egyhaty/golang
-    tag: "keycloak-sha-6e63ab2"
+    tag: "keycloak-sha-053d437"
     pullPolicy: IfNotPresent
   resources:
     requests: { cpu: 250m, memory: 512Mi }
