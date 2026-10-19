@@ -15,6 +15,13 @@ spec:
     - host: {{ .Values.host | quote }}
       http:
         paths:
+          - path: /auth/realms/master/protocol/openid-connect/3p-cookies
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak
+                port:
+                  name: http
           - path: /auth/realms/{{ .Values.oidc.realm }}
             pathType: Prefix
             backend:

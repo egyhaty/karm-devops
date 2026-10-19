@@ -24,14 +24,16 @@ check_health() {
 }
 
 check_learning_lab() {
-  local base="$1" issuer="$1/auth/realms/learning-lab/.well-known/openid-configuration" metadata page api_status metrics_status attempt
+  local base="$1" issuer="$1/auth/realms/learning-lab/.well-known/openid-configuration" metadata page api_status metrics_status iframe_status attempt
   check_health "Learning Lab" "$base"
   for attempt in {1..15}; do
     page="$(curl --fail --silent --max-time 10 "$base/" 2>/dev/null || true)"
     api_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/api/me" 2>/dev/null || true)"
     metrics_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/metrics" 2>/dev/null || true)"
+    iframe_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/auth/realms/master/protocol/openid-connect/3p-cookies/step1.html" 2>/dev/null || true)"
     metadata="$(curl --fail --silent --max-time 10 "$issuer" 2>/dev/null || true)"
     if grep -q 'Project Learning Lab' <<<"$page" && [[ "$api_status" == 401 && "$metrics_status" == 404 ]] &&
+      [[ "$iframe_status" == 200 ]] &&
       jq -e --arg issuer "$base/auth/realms/learning-lab" '.issuer == $issuer and (.authorization_endpoint | startswith($issuer))' <<<"$metadata" >/dev/null 2>&1; then
       break
     fi
@@ -41,7 +43,7 @@ check_learning_lab() {
     fi
     sleep 20
   done
-  echo "Learning Lab home, protected API, and identity routes are healthy"
+  echo "Learning Lab home, protected API, identity routes, and Keycloak admin-console check are healthy"
 }
 
 check_node() {
