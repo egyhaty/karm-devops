@@ -22,8 +22,8 @@
 
 ## العقارات: إدارة المحتوى والطلبات
 
-- الموقع: [node.murabba.net](https://node.murabba.net/).
-- لوحة الوكيل: [node.murabba.net/admin.html](https://node.murabba.net/admin.html).
+- الموقع: [makan.murabba.net](https://makan.murabba.net/).
+- لوحة الوكيل: [makan.murabba.net/admin.html](https://makan.murabba.net/admin.html).
 - افتح ملف الاعتماد المحلي `.backup-recovery/makan-credentials.env` وخد **قيمة `admin-token` فقط**، بدون اسم المفتاح أو علامة `=`. الصقها في خانة Administrator access token واضغط Open workspace.
 - الملف محلي، مستبعد من Git، وصلاحياته للمالك فقط. لا تنشره أو تضع محتواه في commit. انقل القيم إلى مدير كلمات المرور الخاص بك.
 - تقدر تضيف عقارًا بالعنوان والموقع والنوع والسعر والمساحة والغرف والوصف، وتشوف آخر 100 طلب معاينة وتحوّل الحالة بين `new` و`contacted` و`closed`.

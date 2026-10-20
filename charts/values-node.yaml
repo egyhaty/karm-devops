@@ -34,24 +34,24 @@ ingress:
   enabled: true
   className: traefik
   hosts:
-    - host: node.murabba.net
+    - host: makan.murabba.net
       paths:
         - path: /
           pathType: Prefix
   tls:
-    - secretName: node-murabba-net-tls
+    - secretName: makan-murabba-net-tls
       hosts:
-        - node.murabba.net
+        - makan.murabba.net
 
 certificate:
   enabled: true
-  name: node-murabba-net
-  secretName: node-murabba-net-tls
+  name: makan-murabba-net
+  secretName: makan-murabba-net-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - node.murabba.net
+    - makan.murabba.net
 
 pdb:
   enabled: true

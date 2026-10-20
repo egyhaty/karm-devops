@@ -43,7 +43,7 @@ Longhorn sends daily volume backups to an external SMB/CIFS share and keeps the 
 - [Grafana](https://grafana.murabba.net/)
 - [Prometheus](https://prometheus.murabba.net/) — Basic Auth is enabled.
 - [Learning platform](https://learn.murabba.net/)
-- [Node.js application](https://node.murabba.net/)
+- [Makan property application](https://makan.murabba.net/)
 
 Grafana redirects unauthenticated users to login. Prometheus returns HTTP 401 without Basic Auth; these are expected responses.
 

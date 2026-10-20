@@ -28,4 +28,4 @@ The remaining full references are explicitly marked in development, including He
 - Read-only public verification confirmed the Makan image version, location filtering, ascending price sort, readiness, and HTTP 401 for the unauthenticated agent API. The learning library, Docker reference and administrator entry redirect were also checked.
 - No production viewing inquiry was created: automatic approval review rejected that proposed test because it would permanently add a live record. The write workflow and persistence were verified only in disposable local/CI databases.
 
-Public routes: `https://node.murabba.net/`, `https://learn.murabba.net/library.html`, and `https://learn.murabba.net/admin`. The remaining deep-reference tracks are still in development.
+Public routes: `https://makan.murabba.net/`, `https://learn.murabba.net/library.html`, and `https://learn.murabba.net/admin`. The remaining deep-reference tracks are still in development.

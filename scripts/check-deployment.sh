@@ -2,7 +2,7 @@
 set -euo pipefail
 
 GO_URL="${GO_URL:-https://learn.murabba.net}"
-NODE_URL="${NODE_URL:-https://node.murabba.net}"
+NODE_URL="${NODE_URL:-https://makan.murabba.net}"
 PROMETHEUS_URL="${PROMETHEUS_URL:-https://prometheus.murabba.net}"
 metrics_file="$(mktemp)"
 trap 'rm -f "$metrics_file"' EXIT
