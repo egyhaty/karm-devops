@@ -25,4 +25,7 @@ jobs:
       - name: Check public application routes and Prometheus targets
         env:
           PROMETHEUS_BASIC_AUTH: ${{ secrets.PROMETHEUS_BASIC_AUTH }}
-        run: bash scripts/check-deployment.sh
+        run: |
+          export EXPECTED_NODE_VERSION="$(sed -nE 's/^  tag: "([^"]+)"/\1/p' charts/values-node.yaml)"
+          test -n "$EXPECTED_NODE_VERSION"
+          bash scripts/check-deployment.sh

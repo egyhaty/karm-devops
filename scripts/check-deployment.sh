@@ -24,10 +24,11 @@ check_health() {
 }
 
 check_learning_lab() {
-  local base="$1" issuer="$1/auth/realms/learning-lab/.well-known/openid-configuration" metadata page api_status metrics_status master_auth_status master_login_action_status master_account_status attempt
+  local base="$1" issuer="$1/auth/realms/learning-lab/.well-known/openid-configuration" metadata page reference_page api_status metrics_status master_auth_status master_login_action_status master_account_status attempt
   check_health "Learning Lab" "$base"
   for attempt in {1..15}; do
     page="$(curl --fail --silent --max-time 10 "$base/" 2>/dev/null || true)"
+    reference_page="$(curl --fail --silent --max-time 10 "$base/library.html" 2>/dev/null || true)"
     api_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/api/me" 2>/dev/null || true)"
     metrics_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/metrics" 2>/dev/null || true)"
     master_auth_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' \
@@ -38,7 +39,7 @@ check_learning_lab() {
     master_account_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' \
       "$base/auth/realms/master/account" 2>/dev/null || true)"
     metadata="$(curl --fail --silent --max-time 10 "$issuer" 2>/dev/null || true)"
-    if grep -q 'Project Learning Lab' <<<"$page" && [[ "$api_status" == 401 && "$metrics_status" == 404 ]] &&
+    if grep -q 'Project Learning Lab' <<<"$page" && grep -q 'Reference library' <<<"$reference_page" && [[ "$api_status" == 401 && "$metrics_status" == 404 ]] &&
       [[ "$master_auth_status" == 200 || "$master_auth_status" == 302 ]] &&
       [[ "$master_login_action_status" != 404 && "$master_login_action_status" != 503 && "$master_login_action_status" != 000 ]] &&
       [[ "$master_account_status" == 200 || "$master_account_status" == 302 ]] &&
@@ -55,10 +56,23 @@ check_learning_lab() {
 }
 
 check_node() {
-  local name="Node.js" base="$1" metrics_file="$2"
+  local name="Node.js" base="$1" metrics_file="$2" attempt ready catalog version
   check_health "Node.js" "$base"
-  curl --fail --silent --show-error --max-time 10 "$base/readyz" | grep -qx ready
-  curl --fail --silent --show-error --max-time 10 "$base/api/properties" | jq -e '(.properties | type) == "array"' >/dev/null
+  for attempt in {1..20}; do
+    ready="$(curl --fail --silent --max-time 10 "$base/readyz" 2>/dev/null || true)"
+    catalog="$(curl --fail --silent --max-time 10 "$base/api/properties" 2>/dev/null || true)"
+    version="$(curl --fail --silent --max-time 10 "$base/api/version" 2>/dev/null || true)"
+    if [[ "$ready" == ready ]] &&
+      jq -e '(.properties | type) == "array"' <<<"$catalog" >/dev/null 2>&1 &&
+      jq -e --arg expected "${EXPECTED_NODE_VERSION:-}" '.version | type == "string" and (length > 0) and ($expected == "" or . == $expected)' <<<"$version" >/dev/null 2>&1; then
+      break
+    fi
+    if (( attempt == 20 )); then
+      echo "::error::Node.js did not become ready with the expected property application version"
+      return 1
+    fi
+    sleep 15
+  done
   curl --fail --silent --show-error --max-time 10 "$base/" -o /dev/null
   curl --fail --silent --show-error --max-time 10 "$base/metrics" -o "$metrics_file"
   grep -q '^# TYPE ' "$metrics_file" || {
