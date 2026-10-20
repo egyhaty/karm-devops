@@ -1,6 +1,6 @@
 # Reference authoring
 
-The platform tour remains in `web/course.html`. This directory contains deeper, independent reference lessons in English, with an Arabic takeaway per lesson. The initial release includes Docker, Git and Cilium/NetworkPolicy; the library labels other tracks as work in development.
+The platform tour remains in `web/course.html`. The reference library is the home page in `web/index.html`; the Go server redirects the former `/library.html` address to `/`. This directory contains deeper, independent reference lessons in English, with an Arabic takeaway per lesson. The initial release includes Docker, Git and Cilium/NetworkPolicy; the library labels other tracks as work in development.
 
 ## Build
 

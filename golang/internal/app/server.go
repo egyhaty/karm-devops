@@ -77,6 +77,9 @@ func (s *Server) Close() { s.db.Close() }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /library.html", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/", http.StatusPermanentRedirect)
+	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok\n"))

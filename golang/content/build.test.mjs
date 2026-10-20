@@ -7,6 +7,7 @@ test('generated pages link to available lessons and have standalone navigation',
   for (const lesson of catalog) {
     const html = await readFile(new URL(`../web/lessons/${lesson.id}.html`,import.meta.url),'utf8');
     assert.match(html,/<html lang="en">/); assert.match(html,/lang="ar" dir="rtl"|Arabic takeaway/);
+    assert.match(html,/href="\/">Reference library/); assert.doesNotMatch(html,/library\.html/);
     assert.match(html,/id="section-1"/); assert.match(html,/Before you start:/);
     assert.doesNotMatch(html,/<script(?! src=)/);
   }

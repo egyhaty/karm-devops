@@ -75,3 +75,5 @@ The learning site now has a searchable reference library alongside the introduct
 - [Storage and recovery](docs/storage-and-recovery.md)
 
 MIT License. Maintained by [@egyhaty](https://github.com/egyhaty).
+
+For day-to-day application control, see [إدارة الشروحات والعقارات](docs/app-management.md).

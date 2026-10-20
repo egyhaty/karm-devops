@@ -51,7 +51,7 @@ Lesson progress and accounts live in PostgreSQL's Longhorn volume. A replicated 
 
 ## Reference content
 
-The original 13 lessons remain an introductory platform tour with existing progress IDs. The independent reference library is `/library.html`. Its English lessons use Markdown in `content/lessons/`, catalog metadata in `content/catalog.json`, and Arabic takeaway sections. Add a lesson there rather than embedding more HTML into `web/site.js`.
+The original 13 lessons remain an introductory platform tour with existing progress IDs. The reference library is the home page at `/`; the former `/library.html` address redirects there. Its English lessons use Markdown in `content/lessons/`, catalog metadata in `content/catalog.json`, and Arabic takeaway sections. Add a lesson there rather than embedding more HTML into `web/site.js`.
 
 ```sh
 cd content
