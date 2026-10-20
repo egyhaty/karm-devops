@@ -15,6 +15,7 @@ on:
       - 'networking/**'
       - 'infrastructure/**'
       - 'golang/**'
+      - 'nodejs/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -35,6 +36,7 @@ on:
       - 'networking/**'
       - 'infrastructure/**'
       - 'golang/**'
+      - 'nodejs/**'
       - 'scripts/**'
       - 'docs/**'
       - 'README.md'
@@ -51,6 +53,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  application-contracts:
+    name: Application and content checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: makan_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d makan_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci && npm test && npm run test:integration
+        working-directory: nodejs
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:ci-disposable-only@localhost:5432/makan_test
+      - run: npm ci && npm test
+        working-directory: golang/content
+      - name: Ensure generated lessons match Markdown
+        run: git diff --exit-code -- golang/web/lessons golang/web/content-source golang/web/library-index.json
+
   terraform:
     name: Terraform validation
     runs-on: ubuntu-latest

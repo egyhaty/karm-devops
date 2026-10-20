@@ -4,3 +4,7 @@ npm-debug.log
 .gitignore
 Dockerfile.bak
 README.md
+.env
+.env.*
+compose.yaml
+deploy

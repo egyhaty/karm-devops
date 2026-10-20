@@ -83,6 +83,7 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.HandleFunc("GET /readyz", s.ready)
 	mux.HandleFunc("GET /auth/login", s.login)
+	mux.HandleFunc("GET /admin", s.adminEntry)
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("POST /api/auth/logout", s.requireUser(s.withCSRF(s.logout)))
 	mux.HandleFunc("GET /api/me", s.requireUser(s.me))

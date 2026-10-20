@@ -15,7 +15,7 @@ A three-node Kubernetes lab for practicing infrastructure changes, GitOps delive
 | GitOps | Argo CD HA profile and app-of-apps |
 | Persistent storage | Longhorn 1.13.0; three replicas per volume |
 | Observability | Prometheus, Grafana, Alertmanager, node and Kubernetes metrics |
-| Workloads | Go learning platform with self-hosted accounts and progress storage, plus a Node.js service |
+| Workloads | Go learning platform with self-hosted accounts and progress storage, plus the Makan property application |
 | Infrastructure | Terraform-managed Helm releases and adopted Terraform state |
 
 The [node inventory](infrastructure/nodes.yaml) records the Kubernetes VM roles. The shared ingress/API address is a service address, not a node address. See [architecture](docs/architecture.md) for the delivery flow and [operations](docs/operations.md) for maintenance procedures.
@@ -27,7 +27,7 @@ The [node inventory](infrastructure/nodes.yaml) records the Kubernetes VM roles.
 - Post-deployment checks verify the learning site, sign-in routes, protected API, Node.js health, and Prometheus scrape targets. Application metrics are available to Prometheus inside the cluster, not on the public web route.
 - Pull-request validation covers Terraform, Helm, YAML, Kubernetes schemas, shell syntax and secret scanning.
 
-The Go application serves the learning site and its account API. Keycloak handles sign-in and PostgreSQL stores accounts, sessions, administration changes, and lesson progress; both run inside Kubernetes. Course content stays public, while sign-in syncs progress between devices. The Node.js service remains a separate workload and CI example.
+The Go application serves the learning site and its account API. Keycloak handles sign-in and PostgreSQL stores accounts, sessions, administration changes, and lesson progress; both run inside Kubernetes. Course content stays public, while sign-in syncs progress between devices. The Node.js workload serves Makan: searchable property listings, persistent viewing requests, and a protected agent workspace backed by a dedicated PostgreSQL database. See [setup and deployment prerequisites](nodejs/README.md) before promoting the new version.
 
 Verify a published Go image's provenance with `gh attestation verify oci://docker.io/egyhaty/golang@sha256:<digest> --repo egyhaty/karm-devops` (replace the digest with the published image digest).
 
@@ -65,6 +65,8 @@ terraform -chdir=terraform validate
 Install Bash, [yq](https://github.com/mikefarah/yq), jq, Helm 4, kubectl, Terraform and curl first. Rendering creates local files under `rendered/` and `schemas/`; it does not connect to the live cluster.
 
 ## Documentation
+
+The learning site now has a searchable reference library alongside the introductory platform tour. Markdown sources in `golang/content/lessons/` produce standalone pages during image builds. The first references cover Docker, Git, and Cilium/NetworkPolicy, with English explanations and Arabic takeaways.
 
 - [Architecture and delivery trace](docs/architecture.md)
 - [Operations and migration](docs/operations.md)

@@ -39,7 +39,7 @@
       account.className = 'top-link';
       account.textContent = `Signed in as ${label}`;
       host.append(account);
-      if (user.isAdmin) host.append(link('Admin', '/admin.html'));
+      if (user.isAdmin) host.append(link('Admin', '/admin'));
       const logout = button('Sign out');
       logout.addEventListener('click', async () => {
         const response = await fetch('/api/auth/logout', {

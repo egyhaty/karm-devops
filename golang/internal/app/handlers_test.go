@@ -46,3 +46,14 @@ func TestLessonIDPattern(t *testing.T) {
 		}
 	}
 }
+
+func TestLoginReturnPathRejectsExternalAndUnexpectedDestinations(t *testing.T) {
+	for _, value := range []string{"", "/", "https://example.com", "//example.com", "/admin.html?next=https://example.com", "/admin.html/", "/api/admin/users"} {
+		if got := loginReturnPath(value); got != "/" {
+			t.Errorf("loginReturnPath(%q) = %q", value, got)
+		}
+	}
+	if got := loginReturnPath("/admin.html"); got != "/admin.html" {
+		t.Errorf("admin return destination = %q", got)
+	}
+}

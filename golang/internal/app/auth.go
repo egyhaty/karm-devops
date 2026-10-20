@@ -49,7 +49,28 @@ type idClaims struct {
 	} `json:"realm_access"`
 }
 
-type authRequest struct{ nonce, verifier string }
+type authRequest struct{ nonce, verifier, returnPath string }
+
+// Only known local destinations can survive the identity-provider round trip.
+func loginReturnPath(value string) string {
+	if value == "/admin.html" {
+		return value
+	}
+	return "/"
+}
+
+func (s *Server) adminEntry(w http.ResponseWriter, r *http.Request) {
+	user, _, err := s.currentUser(r)
+	if err != nil {
+		http.Redirect(w, r, "/auth/login?next=/admin.html", http.StatusSeeOther)
+		return
+	}
+	if !user.IsAdmin {
+		http.Error(w, "Administrator access is required.", http.StatusForbidden)
+		return
+	}
+	http.Redirect(w, r, "/admin.html", http.StatusSeeOther)
+}
 
 func randomToken(size int) (string, error) {
 	b := make([]byte, size)
@@ -87,7 +108,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if _, err := s.db.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`); err != nil {
 		s.logger.Warn("cleanup expired sessions", "error", err)
 	}
-	_, err = s.db.Exec(ctx, `INSERT INTO auth_requests (state_hash, nonce, pkce_verifier, expires_at) VALUES ($1,$2,$3,$4)`, digest(state), nonce, verifier, time.Now().Add(10*time.Minute))
+	_, err = s.db.Exec(ctx, `INSERT INTO auth_requests (state_hash, nonce, pkce_verifier, expires_at, return_path) VALUES ($1,$2,$3,$4,$5)`, digest(state), nonce, verifier, time.Now().Add(10*time.Minute), loginReturnPath(r.URL.Query().Get("next")))
 	if err != nil {
 		s.logger.Error("store auth request", "error", err)
 		http.Error(w, "sign-in is temporarily unavailable", http.StatusServiceUnavailable)
@@ -113,7 +134,7 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	var request authRequest
-	err = s.db.QueryRow(ctx, `DELETE FROM auth_requests WHERE state_hash=$1 AND expires_at > now() RETURNING nonce, pkce_verifier`, digest(stateCookie.Value)).Scan(&request.nonce, &request.verifier)
+	err = s.db.QueryRow(ctx, `DELETE FROM auth_requests WHERE state_hash=$1 AND expires_at > now() RETURNING nonce, pkce_verifier, return_path`, digest(stateCookie.Value)).Scan(&request.nonce, &request.verifier, &request.returnPath)
 	s.clearCookie(w, stateCookieName, true)
 	if err != nil {
 		http.Error(w, "sign-in expired; please try again", http.StatusBadRequest)
@@ -182,7 +203,7 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setCookie(w, sessionCookieName, apiToken, s.cfg.SessionTTL, true)
 	s.setCookie(w, csrfCookieName, csrfToken, s.cfg.SessionTTL, false)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, loginReturnPath(request.returnPath), http.StatusSeeOther)
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {

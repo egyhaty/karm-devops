@@ -2,13 +2,19 @@
   "name": "nodejs-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Simple Node.js app with Prometheus metrics",
+  "description": "Makan property listings and viewing requests backed by PostgreSQL",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test app.test.js",
+    "test:integration": "node --test store.integration.test.js"
   },
   "dependencies": {
     "express": "^4.21.2",
+    "pg": "^8.23.1",
     "prom-client": "^15.1.3"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

@@ -75,3 +75,24 @@ scaling:
   min: 3
   max: 6
   targetCPUUtilizationPercentage: 70
+
+# Create the SealedSecret described in nodejs/README.md before promoting this version.
+extraEnv:
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: nodejs-property-secrets
+        key: database-url
+  - name: ADMIN_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: nodejs-property-secrets
+        key: admin-token
+
+propertyDatabase:
+  enabled: true
+  secretName: nodejs-property-secrets
+
+probes:
+  readiness:
+    path: /readyz

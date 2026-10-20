@@ -1,0 +1,139 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Docker: build, run and diagnose | Project Learning Lab</title><link rel="stylesheet" href="../reference.css"><script src="../reference.js" defer></script><script src="../auth-client.js" defer></script></head><body><header><a class="brand" href="../index.html">K / LEARNING LAB</a><nav><a href="../library.html">Reference library</a><a href="../course.html">Platform tour</a><span id="authActions"><a href="/auth/login">Sign in</a></span></nav></header><main><div class="breadcrumbs"><a href="../library.html">Reference library</a> / Containers</div><section class="lesson-hero"><p class="eyebrow">Foundation / 60 MIN + PRACTICE</p><h1>Docker: build, run and diagnose</h1><p>Read the actual Dockerfile, observe build caching, run Makan and diagnose a failed port mapping.</p><p class="prerequisites"><b>Before you start:</b> A terminal, Docker and a local checkout</p><a href="../content-source/docker.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">The problem</a><a href="#section-2">In this repository</a><a href="#section-3">Lab</a><a href="#section-4">Troubleshooting</a><a href="#section-5">Verify your understanding</a><a href="#section-6">Arabic takeaway</a><a href="#section-7">Sources</a><a href="../library.html">← All lessons</a></aside><article class="prose"><h2 id="section-1">The problem</h2>
+<p>“It works on my machine” usually hides a difference: runtime version, installed packages, environment variables or file paths. An image packages the application and its runtime filesystem. A container starts a process from that image with isolation and resource controls. It shares the host kernel; it is not a small virtual machine with its own kernel.</p>
+<p>Our goal is specific: build the Makan property service once, run it locally, then deliver that same image through CI and Argo CD. PostgreSQL holds the listings and viewing requests outside the application container. Replacing an application Pod must not erase a viewing request.</p>
+<h2 id="section-2">In this repository</h2>
+<p>Open <code>nodejs/Dockerfile</code>, <code>nodejs/.dockerignore</code>, <code>nodejs/package-lock.json</code> and <code>nodejs/compose.yaml</code>. The Docker build context is <code>nodejs/</code>, not the repository root. These paths are relative to the repository checkout.</p>
+<pre><code class="language-dockerfile">FROM node:24-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev &amp;&amp; npm cache clean --force &amp;&amp; rm -rf /usr/local/lib/node_modules/npm
+COPY --chown=node:node . .
+ENV NODE_ENV=production
+ENV APP_VERSION=dev
+USER 1000:1000
+EXPOSE 3000
+CMD [&quot;node&quot;, &quot;index.js&quot;]
+</code></pre>
+<p><code>FROM</code> chooses the runtime and base filesystem. This tag can move when its publisher updates it; a digest identifies immutable image content. CI gives our own application image a commit-based tag. Check the workflow rather than assuming a tag alone proves what is inside.</p>
+<p><code>WORKDIR</code> makes <code>/app</code> the working directory for following instructions and the startup command. <code>COPY package*.json</code> brings the dependency manifest and lockfile in before the application source. <code>npm ci</code> installs from that lockfile and fails if the manifest and lockfile disagree. <code>--omit=dev</code> leaves development packages out of the installed runtime dependencies.</p>
+<p>Copying source later matters: a source edit can reuse the dependency-install cache. A lockfile edit invalidates that dependency step and the following steps. A cache is an optimization; the lockfile is the dependency record. Deleting npm from this image reduces runtime tooling, but it is not a substitute for vulnerability scanning or patching the base image.</p>
+<p><code>.dockerignore</code> keeps local dependencies, repository metadata and local environment files out of the build context. A secret copied into an image can survive in image layers even if a later instruction deletes it. Supply runtime secrets at runtime; do not add database URLs or administrator tokens to the Dockerfile.</p>
+<p><code>COPY --chown</code> controls ownership of application files. <code>USER</code> starts the service without root privileges. <code>EXPOSE</code> records the intended port; it does not publish a host port. The JSON form of <code>CMD</code> starts Node directly, so it can receive termination signals and close its HTTP server and database pool.</p>
+<h3>Why not use a multi-stage build here?</h3>
+<p>This service runs plain JavaScript. There is no transpiled bundle or native application binary to copy out of a compiler stage. A single runtime stage is reasonable. Compare <code>golang/Dockerfile</code>: Go compiles in a builder stage, then the final image receives the executable and static web assets without the compiler. Add stages when they separate real build requirements, not simply to make every Dockerfile look the same.</p>
+<h3>The data path</h3>
+<pre><code class="language-text">Browser → published host port → Node container :3000
+                                    ↓
+                              PostgreSQL :5432
+                                    ↓
+                              named data volume
+</code></pre>
+<p>Inside Compose, the database hostname is the service name <code>database</code>. <code>localhost</code> inside the Node container means that Node container, not PostgreSQL and not your laptop. In Kubernetes, a Service provides the database hostname instead. The same application reads a different <code>DATABASE_URL</code> in each environment.</p>
+<h2 id="section-3">Lab</h2>
+<p>Use a local checkout and Docker with Compose. This lab starts only local containers. From the repository root:</p>
+<pre><code class="language-sh">cd nodejs
+cp .env.example .env
+</code></pre>
+<p>Edit <code>.env</code> and replace both placeholders. Use a password manager to generate a database password and a random administrator token of at least 32 characters. For this local URL, use a URL-safe database password. Do not commit <code>.env</code>.</p>
+<pre><code class="language-sh">docker compose up --build -d
+docker compose ps
+curl -i http://127.0.0.1:3000/healthz
+curl -i http://127.0.0.1:3000/readyz
+curl -s http://127.0.0.1:3000/api/properties
+</code></pre>
+<p>Expect both health checks to return HTTP 200. The catalog contains six fictional homes on a new database. Open the site, filter by Maadi, open a home and submit a viewing request using sample contact details. Open the agent workspace and use your local administrator token to see the stored request. Change its status to <code>contacted</code>.</p>
+<h3>Prove persistence rather than assuming it</h3>
+<pre><code class="language-sh">docker compose restart app
+</code></pre>
+<p>Refresh the agent workspace and unlock it again if needed. The request and its status should still exist. The app process was replaced; the data stayed in PostgreSQL. A browser success message alone is not evidence of durable storage.</p>
+<pre><code class="language-sh">docker compose stop database
+curl -i http://127.0.0.1:3000/healthz
+curl -i http://127.0.0.1:3000/readyz
+</code></pre>
+<p>The existing Node process should remain alive, so liveness stays 200. Readiness should fail with 503 because the database cannot answer. A live process cannot necessarily serve business requests. Kubernetes should stop sending normal traffic to an unready Pod, rather than continually restarting it for an unavailable dependency.</p>
+<pre><code class="language-sh">docker compose start database
+curl -i http://127.0.0.1:3000/readyz
+</code></pre>
+<p>Retry readiness after the database starts. Expect recovery without rebuilding the application.</p>
+<h3>Observe the build cache</h3>
+<pre><code class="language-sh">docker build --progress=plain -t makan:lab .
+docker build --progress=plain -t makan:lab .
+</code></pre>
+<p>The second build should reuse unchanged steps. Edit a visible sentence in <code>web/index.html</code>, rebuild, and identify the first invalidated step. Dependency installation should remain cached. Undo only your sentence edit afterward; do not discard unrelated local changes.</p>
+<h3>Intentionally publish the wrong port</h3>
+<p>Temporarily change only the app port mapping in <code>compose.yaml</code> to <code>127.0.0.1:18080:9999</code>, keeping the valid database configuration. Recreate the app:</p>
+<pre><code class="language-sh">docker compose up -d app
+curl --max-time 3 -i http://127.0.0.1:18080/healthz
+docker compose logs --tail=30 app
+</code></pre>
+<p>Expect the HTTP request to fail even though the app can start. The process listens on 3000; publishing 9999 forwards to a port with no listener. Restore <code>127.0.0.1:3000:3000</code> and recreate the app. Change one variable at a time when diagnosing a real incident.</p>
+<h3>Inspect runtime evidence</h3>
+<pre><code class="language-sh">docker compose exec app id
+docker compose exec app sh -c &#39;tr &quot;\0&quot; &quot; &quot; &lt; /proc/1/cmdline&#39;
+docker compose logs --tail=30 app
+curl -s http://127.0.0.1:3000/metrics
+</code></pre>
+<p>The user should be non-root and process 1 should run Node. Request logs contain a generated request ID and route, without contact details or tokens. Metrics use route templates rather than property slugs or request IDs, keeping the number of label combinations bounded.</p>
+<h3>Cleanup</h3>
+<pre><code class="language-sh">docker compose down
+</code></pre>
+<p>The named database volume is retained. Use <code>docker compose down -v</code> only when you intend to delete this lab&#39;s database, including viewing requests. A volume is persistence, not a backup. A separate backup and a tested restore address a different failure.</p>
+<h2 id="section-4">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First evidence</th>
+<th>Likely next check</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Image fails to build</td>
+<td>First failing Docker build step</td>
+<td>Lockfile consistency, registry access, build context</td>
+</tr>
+<tr>
+<td>App exits at startup</td>
+<td>App logs and required configuration</td>
+<td>Database health, URL and administrator token length</td>
+</tr>
+<tr>
+<td>Health works, catalog fails</td>
+<td>Readiness and HTTP status</td>
+<td>Database connectivity and initialized schema</td>
+</tr>
+<tr>
+<td>Connection refused from laptop</td>
+<td>Published mapping in Compose</td>
+<td>Host port versus actual container listener</td>
+</tr>
+<tr>
+<td>New file is absent</td>
+<td>Rebuild output and running image</td>
+<td>Build context, ignored files, old container</td>
+</tr>
+<tr>
+<td>Request disappears after restart</td>
+<td>Database volume and target database</td>
+<td>Whether you recreated the volume or connected to another database</td>
+</tr>
+</tbody></table>
+<p>Do not print <code>.env</code>, dump container environments into a ticket, or paste connection strings into public logs. You can verify whether configuration is present without exposing its value.</p>
+<h2 id="section-5">Verify your understanding</h2>
+<ol>
+<li>Explain why <code>EXPOSE 3000</code> alone does not let your browser reach the app.</li>
+<li>Show which build step reruns after a source edit and explain why the dependency step can be reused.</li>
+<li>Demonstrate a viewing request surviving an app restart.</li>
+<li>Demonstrate liveness succeeding while readiness fails during a database outage.</li>
+<li>Explain why three application replicas need one shared database rather than three in-memory request lists.</li>
+</ol>
+<p>Evidence to keep: build output, HTTP status codes, and a redacted request reference before and after restart. You have completed the lab when you can reproduce and explain these outcomes, not when you have copied all the commands.</p>
+<h2 id="section-6">Arabic takeaway</h2>
+<p>الـ Image بتجهز التطبيق، والـ Container بيشغّله. الداتا مكانها قاعدة بيانات مستقلة. اتأكد من الفرق بين البورت المنشور وبورت التطبيق، وبين العملية الشغالة والخدمة الجاهزة، واثبت إن الطلب فضل موجود بعد إعادة التشغيل.</p>
+<h2 id="section-7">Sources</h2>
+<ul>
+<li><a href="https://docs.docker.com/build/cache/">Docker build cache</a></li>
+<li><a href="https://docs.docker.com/reference/dockerfile/">Dockerfile reference</a></li>
+<li><a href="https://docs.docker.com/compose/how-tos/networking/">Docker Compose networking</a></li>
+</ul>
+<section class="related"><h2>Continue exploring</h2><a href="git.html">Git: ship a change you can undo ↗</a><a href="network-policy.html">Cilium, Flannel and NetworkPolicy ↗</a></section></article></div></main><footer>Project Learning Lab · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

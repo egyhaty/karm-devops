@@ -1,0 +1,1 @@
+ALTER TABLE auth_requests ADD COLUMN IF NOT EXISTS return_path TEXT NOT NULL DEFAULT '/';

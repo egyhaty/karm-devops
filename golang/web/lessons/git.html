@@ -1,0 +1,115 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Git: ship a change you can undo | Project Learning Lab</title><link rel="stylesheet" href="../reference.css"><script src="../reference.js" defer></script><script src="../auth-client.js" defer></script></head><body><header><a class="brand" href="../index.html">K / LEARNING LAB</a><nav><a href="../library.html">Reference library</a><a href="../course.html">Platform tour</a><span id="authActions"><a href="/auth/login">Sign in</a></span></nav></header><main><div class="breadcrumbs"><a href="../library.html">Reference library</a> / Delivery</div><section class="lesson-hero"><p class="eyebrow">Foundation / 45 MIN + PRACTICE</p><h1>Git: ship a change you can undo</h1><p>Make a focused branch, inspect a diff, resolve a conflict and revert a change without rewriting shared history.</p><p class="prerequisites"><b>Before you start:</b> Git and a local checkout</p><a href="../content-source/git.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">The problem</a><a href="#section-2">In this repository</a><a href="#section-3">Lab</a><a href="#section-4">Troubleshooting</a><a href="#section-5">Verify your understanding</a><a href="#section-6">Arabic takeaway</a><a href="#section-7">Sources</a><a href="../library.html">← All lessons</a></aside><article class="prose"><h2 id="section-1">The problem</h2>
+<p>A deployment is easier to trust when you can answer three questions: what changed, who reviewed it, and how to undo it. Git records source history; it does not test your application or deploy Kubernetes objects by itself. Those jobs belong to the workflow and Argo CD.</p>
+<p>A branch names a line of development. A commit records a snapshot and its parent history. A pull request is the review conversation around the proposed difference. A clean commit is useful because a reviewer and a future operator can understand one decision without reconstructing unrelated edits.</p>
+<h2 id="section-2">In this repository</h2>
+<p>Read <code>.github/workflows/automate-build-apps.yml</code>, <code>charts/values-node.yaml</code> and <code>argocd/apps/nodejs.yaml</code>.</p>
+<pre><code class="language-text">Application commit → CI tests/build → image tagged with commit identity
+                                    ↓
+                         promotion updates Helm values
+                                    ↓
+                       Argo CD reconciles the cluster
+</code></pre>
+<p>The source commit, image reference and promotion commit are related but distinct records. A successful source build does not prove the new image has been promoted. A promotion commit does not prove the Pods have become Ready. Inspect evidence at each handoff.</p>
+<p>A feature branch does not automatically become a production release. Check workflow event filters and the Argo CD target revision. Here, the deployment application follows <code>main</code>, and promotion changes the image tag in values.</p>
+<h2 id="section-3">Lab</h2>
+<p>First inspect your working tree. Do not use reset commands to make existing work disappear.</p>
+<pre><code class="language-sh">git status --short
+git log -5 --oneline
+</code></pre>
+<p>For practice, use a separate temporary repository so this exercise cannot accidentally promote a change to the platform:</p>
+<pre><code class="language-sh">mkdir git-delivery-lab
+cd git-delivery-lab
+git init -b main
+git config user.name &quot;Lab Learner&quot;
+git config user.email &quot;learner@example.invalid&quot;
+printf &#39;Viewing requests are open.\n&#39; &gt; message.txt
+git add message.txt
+git commit -m &quot;Add viewing message&quot;
+git switch -c improve-message
+printf &#39;Request a viewing from the property page.\n&#39; &gt; message.txt
+git diff --check
+git diff
+</code></pre>
+<p><code>git diff</code> shows unstaged edits. It does not show what you have already staged. Stage the exact file and inspect the proposed snapshot:</p>
+<pre><code class="language-sh">git add message.txt
+git diff --cached
+git commit -m &quot;Clarify how to request a viewing&quot;
+git log --oneline --all --graph
+</code></pre>
+<h3>Create and resolve a real conflict</h3>
+<pre><code class="language-sh">git switch main
+printf &#39;Contact the agent to arrange a visit.\n&#39; &gt; message.txt
+git add message.txt
+git commit -m &quot;Update agent contact wording&quot;
+git merge improve-message
+</code></pre>
+<p>Both branches changed the same original line. Expect a conflict, not a completed merge. Open <code>message.txt</code>, inspect the conflict markers and decide the final wording. Git cannot decide product intent for you.</p>
+<pre><code class="language-sh">printf &#39;Request a viewing from the property page; an agent will review it.\n&#39; &gt; message.txt
+git add message.txt
+git diff --cached
+git commit -m &quot;Merge clearer viewing instructions&quot;
+git status --short
+</code></pre>
+<p>The working tree should be clean. If you wanted to abandon the merge before resolving it, <code>git merge --abort</code> would return to the pre-merge state when possible. Do not continue issuing new merges while an unresolved merge is in progress.</p>
+<h3>Undo a published-style change</h3>
+<p>Create one deliberately poor change, then reverse it with a new commit:</p>
+<pre><code class="language-sh">printf &#39;Viewing requests are permanently closed.\n&#39; &gt; message.txt
+git add message.txt
+git commit -m &quot;Close viewing requests&quot;
+git revert --no-edit HEAD
+git log -3 --oneline
+cat message.txt
+</code></pre>
+<p>The last commit reverses the bad change while keeping the record. This is why <code>revert</code> is often appropriate for history others already share. A reset can move a local branch pointer; force-pushing rewritten shared history changes what colleagues see. These are different operations with different consequences.</p>
+<h3>Connect this to GitOps rollback</h3>
+<p>Suppose the application is failing after an image promotion. Find the promotion commit and its values diff. A reviewed revert of that promotion can ask Argo CD to reconcile the previous image reference. Editing a live Deployment alone may be undone by self-heal.</p>
+<p>Before reverting, check compatibility: an older application may not understand a newer database schema. Git can reverse a manifest edit; it cannot automatically reverse data writes or make an unsafe migration compatible.</p>
+<h3>Cleanup</h3>
+<p>The temporary <code>git-delivery-lab</code> directory is the whole exercise. Keep it for reference or remove that directory after verifying its path. Nothing from this lab needs to be pushed.</p>
+<h2 id="section-4">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Inspect</th>
+<th>Next action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Commit contains an unrelated file</td>
+<td><code>git diff --cached --stat</code></td>
+<td>Unstage that file, then review again</td>
+</tr>
+<tr>
+<td>Your edit is missing from a commit</td>
+<td><code>git diff</code> and <code>git diff --cached</code></td>
+<td>Stage the intended edit</td>
+</tr>
+<tr>
+<td>Merge does not finish</td>
+<td><code>git status</code></td>
+<td>Resolve each conflict or abort the merge</td>
+</tr>
+<tr>
+<td>CI passes but site is unchanged</td>
+<td>Image tag and promotion diff</td>
+<td>Trace promotion and Argo CD status</td>
+</tr>
+<tr>
+<td>Live fix disappears</td>
+<td>Git desired state and Argo events</td>
+<td>Commit the intended configuration</td>
+</tr>
+</tbody></table>
+<h2 id="section-5">Verify your understanding</h2>
+<p>Explain the difference between an unstaged edit, a staged snapshot and a commit. Show a resolved conflict with the intended final wording. Show the bad commit and its separate revert. Finally, identify the file that records the Node image tag in the real repository and explain why a source commit alone is not proof of a completed release.</p>
+<h2 id="section-6">Arabic takeaway</h2>
+<p>Git سجل للتغييرات، مش نظام نشر لوحده. راجع الـ diff قبل الـ commit، وحل التعارض بناءً على المعنى. الرجوع في GitOps يبدأ من الحالة المطلوبة في الريبو، مع مراجعة توافق التطبيق وقاعدة البيانات.</p>
+<h2 id="section-7">Sources</h2>
+<ul>
+<li><a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository">Git: recording changes</a></li>
+<li><a href="https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging">Git: basic branching and merging</a></li>
+<li><a href="https://git-scm.com/docs/git-revert">Git revert</a></li>
+<li><a href="https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/">Argo CD automated sync</a></li>
+</ul>
+<section class="related"><h2>Continue exploring</h2><a href="docker.html">Docker: build, run and diagnose ↗</a><a href="network-policy.html">Cilium, Flannel and NetworkPolicy ↗</a></section></article></div></main><footer>Project Learning Lab · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

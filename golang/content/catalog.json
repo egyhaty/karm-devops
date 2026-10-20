@@ -1,0 +1,5 @@
+[
+  {"id":"docker","title":"Docker: build, run and diagnose","track":"Containers","minutes":60,"level":"Foundation","prerequisites":"A terminal, Docker and a local checkout","summary":"Read the actual Dockerfile, observe build caching, run Makan and diagnose a failed port mapping."},
+  {"id":"git","title":"Git: ship a change you can undo","track":"Delivery","minutes":45,"level":"Foundation","prerequisites":"Git and a local checkout","summary":"Make a focused branch, inspect a diff, resolve a conflict and revert a change without rewriting shared history."},
+  {"id":"network-policy","title":"Cilium, Flannel and NetworkPolicy","track":"Networking","minutes":70,"level":"Intermediate","prerequisites":"kubectl, a disposable cluster with a policy-capable CNI","summary":"Separate networking from ingress, test isolation and restore only the traffic your service needs."}
+]

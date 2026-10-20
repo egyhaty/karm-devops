@@ -57,6 +57,8 @@ check_learning_lab() {
 check_node() {
   local name="Node.js" base="$1" metrics_file="$2"
   check_health "Node.js" "$base"
+  curl --fail --silent --show-error --max-time 10 "$base/readyz" | grep -qx ready
+  curl --fail --silent --show-error --max-time 10 "$base/api/properties" | jq -e '(.properties | type) == "array"' >/dev/null
   curl --fail --silent --show-error --max-time 10 "$base/" -o /dev/null
   curl --fail --silent --show-error --max-time 10 "$base/metrics" -o "$metrics_file"
   grep -q '^# TYPE ' "$metrics_file" || {

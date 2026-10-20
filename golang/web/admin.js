@@ -9,7 +9,7 @@
       credentials: 'same-origin', ...options,
       headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf() } : {}), ...options.headers }
     });
-    if (response.status === 401) { window.location.assign('/auth/login'); throw new Error('Sign in to continue.'); }
+    if (response.status === 401) { window.location.assign('/auth/login?next=/admin.html'); throw new Error('Sign in to continue.'); }
     if (response.status === 403) { window.location.assign('/'); throw new Error('Administrator access is required.'); }
     if (!response.ok) throw new Error(`Request failed (${response.status}).`);
     return response.status === 204 ? null : response.json();

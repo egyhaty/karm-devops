@@ -65,14 +65,37 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          trap 'docker rm -f nodejs-smoke >/dev/null 2>&1 || true' EXIT
-          docker run -d --name nodejs-smoke -p 127.0.0.1:3000:3000 -e APP_VERSION="$APP_TAG" "$IMAGE"
+          trap 'docker rm -f nodejs-smoke nodejs-postgres >/dev/null 2>&1 || true; docker network rm nodejs-smoke-net >/dev/null 2>&1 || true' EXIT
+          db_password="$(openssl rand -hex 24)"
+          admin_token="$(openssl rand -hex 32)"
+          echo "::add-mask::$db_password"
+          echo "::add-mask::$admin_token"
+          docker network create nodejs-smoke-net
+          docker run -d --name nodejs-postgres --network nodejs-smoke-net -e POSTGRES_PASSWORD="$db_password" -e POSTGRES_DB=makan postgres:18.6-alpine
           for attempt in {1..30}; do
-            if curl -fsS http://127.0.0.1:3000/healthz; then break; fi
+            if docker exec nodejs-postgres pg_isready -U postgres -d makan; then break; fi
+            sleep 1
+          done
+          docker run --rm --network nodejs-smoke-net --entrypoint node -e TEST_DATABASE_URL="postgresql://postgres:$db_password@nodejs-postgres:5432/makan" "$IMAGE" --test store.integration.test.js
+          docker run --rm --entrypoint node "$IMAGE" --test app.test.js
+          docker run -d --name nodejs-smoke --network nodejs-smoke-net -p 127.0.0.1:3000:3000 -e APP_VERSION="$APP_TAG" -e DATABASE_URL="postgresql://postgres:$db_password@nodejs-postgres:5432/makan" -e ADMIN_TOKEN="$admin_token" "$IMAGE"
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/readyz; then break; fi
             sleep 1
           done
           curl -fsS http://127.0.0.1:3000/healthz | grep -qx ok
-          curl -fsS http://127.0.0.1:3000/ | grep -Fx "version=$APP_TAG"
+          curl -fsS http://127.0.0.1:3000/readyz | grep -qx ready
+          curl -fsS http://127.0.0.1:3000/ | grep -q 'makan'
+          curl -fsS http://127.0.0.1:3000/api/version | jq -e --arg version "$APP_TAG" '.version == $version'
+          curl -fsS http://127.0.0.1:3000/api/properties | jq -e '.properties | length == 6'
+          inquiry="$(curl -fsS -X POST http://127.0.0.1:3000/api/properties/garden-residence/inquiries -H 'Content-Type: application/json' --data '{"name":"CI Sample","phone":"01000000000","message":"Smoke test"}')"
+          jq -e '.status == "new" and (.id | length > 0)' <<<"$inquiry"
+          docker restart nodejs-smoke
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/readyz; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/api/admin/inquiries -H "Authorization: Bearer $admin_token" | jq -e --arg id "$(jq -r .id <<<"$inquiry")" '.inquiries | any(.id == $id)'
           curl -fsS http://127.0.0.1:3000/metrics -o /tmp/metrics-3000.txt
           grep -q '^http_requests_total' /tmp/metrics-3000.txt
       - name: Scan Node.js image
