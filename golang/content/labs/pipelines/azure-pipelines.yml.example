@@ -1,0 +1,44 @@
+# INERT EXAMPLE. Separate sandbox Azure DevOps project. No automatic trigger/apply.
+# Create WIF service connection and resource checks OUTSIDE YAML.
+# Use a trusted pinned runner with Terraform >=1.10 installed.
+trigger: none
+pr: none
+pool:
+  vmImage: ubuntu-latest
+variables:
+  # Define labServiceConnection, labStateAccount, labStorageAccount and
+  # labSshPublicKey in the sandbox project's controlled variable settings.
+  terraformDirectory: golang/content/labs/azure-app
+steps:
+  - checkout: self
+    persistCredentials: false
+  - task: AzureCLI@2
+    displayName: Federated sandbox plan only
+    inputs:
+      azureSubscription: $(labServiceConnection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true
+      inlineScript: |
+        set -euo pipefail
+        command -v terraform
+        export ARM_CLIENT_ID="$servicePrincipalId"
+        export ARM_TENANT_ID="$tenantId"
+        export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+        export ARM_USE_OIDC=true ARM_USE_AZUREAD=true
+        export ARM_OIDC_TOKEN="$idToken"
+        export TF_VAR_subscription_id="$ARM_SUBSCRIPTION_ID"
+        export TF_VAR_storage_account_name="$LAB_STORAGE_ACCOUNT"
+        export TF_VAR_ssh_public_key_path=/tmp/cloud-lab.pub
+        printf '%s\n' "$LAB_PUBLIC_KEY" > /tmp/cloud-lab.pub
+        cd "$TF_DIRECTORY"
+        cp backend.azurerm.tf.example backend.tf
+        terraform init -input=false -backend-config="storage_account_name=$STATE_ACCOUNT" -backend-config=container_name=tfstate -backend-config=key=cloud-learning/azure-app.tfstate -backend-config=use_oidc=true
+        terraform validate
+        terraform plan -input=false -no-color
+    env:
+      TF_DIRECTORY: $(terraformDirectory)
+      LAB_STORAGE_ACCOUNT: $(labStorageAccount)
+      LAB_PUBLIC_KEY: $(labSshPublicKey)
+      STATE_ACCOUNT: $(labStateAccount)
+      TF_IN_AUTOMATION: 'true'

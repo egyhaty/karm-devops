@@ -1,0 +1,109 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Azure capstone: build and diagnose a private application | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/azure.html">Microsoft Azure Cloud &amp; DevOps</a> / Module 7</div><section class="lesson-hero"><p class="eyebrow">Intermediate practical / 130 MIN INCLUDING PRACTICE</p><h1>Azure capstone: build and diagnose a private application</h1><p>Build a private VM application behind an internal load balancer, authorize private Blob access through managed identity, and diagnose DNS, process and RBAC failures.</p><p class="prerequisites"><b>Before you start:</b> Azure 01–06; Terraform 1.10+; sandbox budget and quotas; SSH public key; Azure CLI.</p><a href="/content-source/azure-07.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Deploy a private application path with explicit outbound connectivity, prove private endpoint DNS and data authorization from inside the VNet, and distinguish load-balancer, service, DNS and identity incidents. Produce an interview-ready incident report with rollback and cleanup evidence.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Use a sandbox subscription, Azure CLI and Terraform 1.10+. Supply a local SSH <strong>public</strong> key for VM creation, though the lab uses Run Command and never opens SSH. Check quotas and availability for the selected VM size/region. Price VM/disks, NAT/public IP, Standard Load Balancer, Storage and private endpoint charges; set a destroy deadline. Budget alerts are not hard spending limits.</p>
+<p>No application secrets or account keys are needed. Your deployment identity needs resource management rights for the lab RG and permission to assign the Storage Blob Data Reader role; separate bootstrap role assignment from routine CI where appropriate. Use local state initially or the independent backend from Azure 05.</p>
+<h2 id="section-3">The problem</h2>
+<p>The application is a small Python HTTP service with <code>/healthz</code> and <code>/storage-check</code>. It runs on a VM with no public IP behind an <strong>internal</strong> Standard Load Balancer. The VM obtains a Storage token through managed identity and lists a private Blob container via a private endpoint and linked DNS zone. The Storage Account disables shared keys, public access and anonymous containers. A NAT Gateway supplies explicit outbound access for bootstrap, agent and Azure APIs; it does not provide inbound access.</p>
+<pre><code class="language-text">Management: Azure CLI → VM Run Command (platform agent)
+Client test: temporary private probe VM → internal LB :8080 → app VM :8080
+App VM → normal Blob hostname → private DNS → Blob private endpoint
+App VM → IMDS managed identity token → Storage data role → list container
+App VM/probe subnet → NAT → internet egress (not inbound SSH)
+</code></pre>
+<p>This is a secure-boundary troubleshooting lab, not a highly available production implementation. It has one application VM, no public website, and internal HTTP rather than TLS. Azure 03&#39;s extension designs VMSS/zones/Application Gateway. A real deployment needs TLS, resilient compute, diagnostic ingestion, backups where state is added, hardened images and tested releases.</p>
+<h2 id="section-4">In this repository</h2>
+<p>Use <code>golang/content/labs/azure-app/</code> only. <code>main.tf</code> creates the isolated RG, VNet/subnets/NSG, NAT, load balancer, private storage endpoint/DNS and VM managed identity/role. <code>app.py</code> uses Python&#39;s standard library, checks the metadata header and never logs tokens. <code>cloud-init.yaml.tftpl</code> installs the service without external package dependencies. A second probe VM is optional and disabled by default. Download the README at <code>../labs/azure-app/README.md</code> for file links.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>You do not need a perfect first deployment. Work through the validation checks and let each result guide the next step.</p></div><h2 id="section-5">Lab</h2>
+<pre><code class="language-bash">cd golang/content/labs/azure-app
+az account set --subscription &quot;$LAB_SUBSCRIPTION_ID&quot;
+az account show --query &#39;{subscription:id,tenant:tenantId}&#39;
+terraform init -backend=false
+terraform validate
+cp terraform.tfvars.example terraform.tfvars
+# Edit subscription_id, public key path, unique storage name, region and budgeted VM size.
+terraform plan -out=azure-lab.tfplan
+terraform show -no-color azure-lab.tfplan
+</code></pre>
+<p>Read the plan for private addressing, NSG scope, public Storage disabled, shared-key access disabled, private endpoint connection and role assignment. <strong>Applying creates paid resources; proceed only after your own cost/account review.</strong></p>
+<pre><code class="language-bash">terraform apply azure-lab.tfplan
+RG=$(terraform output -raw resource_group_name)
+VM=$(terraform output -raw vm_name)
+FQDN=$(terraform output -raw storage_fqdn)
+az vm run-command invoke -g &quot;$RG&quot; -n &quot;$VM&quot; --command-id RunShellScript --scripts &quot;getent ahostsv4 $FQDN; systemctl is-active cloud-lab-app; curl -fsS http://127.0.0.1:8080/storage-check&quot; --query &#39;value[].message&#39; -o tsv
+</code></pre>
+<p>Wait for VM agent readiness and RBAC propagation; do not mask an ongoing failure as eventual consistency indefinitely. The normal Blob hostname must resolve to the endpoint&#39;s private IP from the VM. The app should return a successful Storage status without returning a token or blob payload.</p>
+<p>To prove the actual client path, enable <code>enable_probe = true</code> in your private tfvars, review/apply the incremental cost, then use the probe VM (same VNet, no public IP) to call the <strong>internal LB</strong> output on port 8080 through Run Command. Calling the LB from the backend VM itself can involve hairpin behavior, so use the separate probe:</p>
+<pre><code class="language-bash">PROBE=$(terraform output -raw probe_vm_name)
+VIP=$(terraform output -raw internal_lb_ip)
+az vm run-command invoke -g &quot;$RG&quot; -n &quot;$PROBE&quot; --command-id RunShellScript --scripts &quot;curl -fsS http://$VIP:8080/healthz; curl -fsS http://$VIP:8080/storage-check&quot; --query &#39;value[].message&#39; -o tsv
+</code></pre>
+<p>Controlled incidents, one at a time:</p>
+<ol>
+<li>Stop <code>cloud-lab-app</code> via app VM Run Command. Confirm VM remains running, local curl fails and probe-to-LB fails after health detection. Restart it and measure recovery.</li>
+<li>Temporarily remove the private DNS VNet link through a reviewed Terraform edit, repeat name lookup and storage-check from the VM, then restore. Record cache effects and endpoint error evidence.</li>
+<li>In the sandbox only, remove the app&#39;s Storage data role through a reviewed config edit, keeping identity attached. Token acquisition should still work, but storage access fails after authorization caches/propagation. Restore the assignment and verify recovery. Don&#39;t print the token to prove acquisition; service error/status is sufficient.</li>
+</ol>
+<h2 id="section-6">Validation</h2>
+<p>Keep five checks: no public app/probe NIC IP; private Blob DNS IP; public Storage access blocked; managed-identity data request succeeds; probe→internal VIP succeeds. Include one failed/recovered process, DNS and role boundary with timestamps. The Terraform role resource should target the VM principal and the lab account scope, not the subscription.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>Finish with a clear incident story and verified cleanup. Knowing the limits of your build is part of knowing the build.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Evidence</th>
+<th>Repair</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Run Command unavailable</td>
+<td>VM agent/platform connectivity, provisioning status</td>
+<td>Restore explicit outbound/agent health</td>
+</tr>
+<tr>
+<td>Local 8080 works, VIP fails</td>
+<td>Probe VM path, LB backend NIC association, NSG probe rule</td>
+<td>Correct LB/probe network contract</td>
+</tr>
+<tr>
+<td>Storage-check timeout</td>
+<td>DNS private IP, endpoint approval, NSG/route</td>
+<td>Restore private connectivity</td>
+</tr>
+<tr>
+<td>Storage-check 403</td>
+<td>Service code, exact principal/data role</td>
+<td>Repair RBAC; allow propagation after verification</td>
+</tr>
+<tr>
+<td>Deploy fails on storage container</td>
+<td>Provider management-plane support/schema, subscription policy</td>
+<td>Read provider error; do not expose account keys</td>
+</tr>
+</tbody></table>
+<h2 id="section-8">Cleanup</h2>
+<p>Restore all intentional edits before destroying so ownership matches state. Review and apply a destroy plan in this same directory/backend:</p>
+<pre><code class="language-bash">terraform plan -destroy -out=azure-destroy.tfplan
+terraform show -no-color azure-destroy.tfplan
+terraform apply azure-destroy.tfplan
+terraform state list
+az group exists --name &quot;$RG&quot;
+rm -f azure-lab.tfplan azure-destroy.tfplan
+</code></pre>
+<p>Expect an empty workload state and <code>false</code> for the deleted RG. Check the Activity Log for completion and inventory any resources you manually added outside the RG, especially diagnostic workspaces/backups. The independently bootstrapped state account remains. Deleting an RG manually first is not the ordinary Terraform lifecycle.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>App can get an identity token but cannot read Storage. What next?</strong> Check requested audience, principal, data role/scope and propagation separately from DNS/private endpoint/firewall. A token proves authentication, not authorization or network reachability.</p>
+<p><strong>How do you prove the load balancer works?</strong> Test its VIP from a separate allowed client, inspect backend association/probe rules, and induce a controlled process failure. A localhost curl on the backend proves only the listener.</p>
+<p><strong>What would you change for production?</strong> Add resilient compute and rollout, TLS ingress, least-privilege data scope, observability, image patching, explicit SLOs, tested restore if persistent app data is introduced, and cost governance. Keep these as proposed improvements until implemented and measured.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Deliver an incident report: symptom, hypothesis, evidence, isolated cause, minimal fix, verification and prevention. Compare Azure private endpoint/managed identity boundaries with AWS endpoint/instance-profile boundaries without claiming they are identical.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>ابنِ مسار خاص كامل واختبره من جوه الشبكة ومن client منفصل. نجاح token مش نجاح Storage، ونجاح localhost مش نجاح الـ load balancer. اعزل عطل الخدمة عن DNS وعن RBAC، وارجع كل حاجة ثم امسح موارد اللاب.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/azure/load-balancer/quickstart-load-balancer-standard-internal-terraform">Internal Standard Load Balancer</a></li>
+<li><a href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token">Managed identity on an Azure VM</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/storage/common/storage-private-endpoints">Private endpoints for Storage</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/virtual-machines/linux/run-command">Azure VM Run Command</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="The backend listener and client-to-VIP path are different checks."><fieldset><legend>1. Does localhost curl prove the internal load balancer client path?</legend><label><input type="radio" name="question-0" value="0" required> Yes</label><label><input type="radio" name="question-0" value="1" required> No, test the VIP from a separate allowed client</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Authentication can succeed while data access or network restrictions deny the request."><fieldset><legend>2. What does an IMDS token followed by a Storage 403 suggest?</legend><label><input type="radio" name="question-1" value="0" required> The VM is necessarily off</label><label><input type="radio" name="question-1" value="1" required> Inspect data authorization and network policy independently</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="azure-07"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="azure-06.html">← Previous module</a><a href="/tracks/azure.html">Track overview</a><a href="/study-plan.html">Return to study plan →</a></nav><section class="related"><h2>Continue exploring</h2><a href="azure-01.html">Azure operating model: subscriptions, Entra ID and RBAC ↗</a><a href="azure-02.html">Azure networking: NSGs, routes, private endpoints and DNS ↗</a><a href="azure-03.html">Azure compute: VMs, scale sets and load-balancing choices ↗</a><a href="azure-04.html">Azure services: Storage, Key Vault, identities and Monitor ↗</a><a href="azure-05.html">Azure Terraform: provider identity and Blob remote state ↗</a><a href="azure-06.html">Azure delivery: federated GitHub Actions and Azure Pipelines ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

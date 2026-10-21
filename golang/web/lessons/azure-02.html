@@ -1,0 +1,79 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Azure networking: NSGs, routes, private endpoints and DNS | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/azure.html">Microsoft Azure Cloud &amp; DevOps</a> / Module 2</div><section class="lesson-hero"><p class="eyebrow">Intermediate practical / 85 MIN INCLUDING PRACTICE</p><h1>Azure networking: NSGs, routes, private endpoints and DNS</h1><p>Trace effective routes and NSGs, distinguish private endpoints from service endpoints, and diagnose private DNS from the workload.</p><p class="prerequisites"><b>Before you start:</b> Azure 01; Azure CLI; sandbox VNet rights; basic TCP and DNS diagnosis.</p><a href="/content-source/azure-02.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Build a VNet/subnet boundary, inspect NSG rules and route-table associations, and explain private endpoint DNS resolution. Translate AWS mental models without assuming identical defaults or features.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Use the sandbox subscription from Azure 01. Azure CLI and dig/getent are useful. This basic lab creates networking control objects only; private endpoints, VMs, NAT and Network Watcher diagnostics may add charges. Runtime private-endpoint evidence is collected in Azure 07, which includes a private VM probe rather than testing only from your laptop.</p>
+<h2 id="section-3">The problem</h2>
+<p>A VNet is the address/routing boundary. Azure provides system routes, which can be overridden by user-defined routes where applicable; longest prefix and route-source precedence matter. An NSG is stateful and can be associated with a subnet and/or NIC. When both apply, traffic must pass both. Lower priority numbers are evaluated first, and default rules still exist. Azure NSGs are not AWS stateless NACLs.</p>
+<p>A private endpoint assigns a private IP in your VNet to a service&#39;s private connection. It does not automatically disable the service&#39;s public access or grant data authorization. Service endpoints instead extend service identity/connectivity from a subnet to the service&#39;s public endpoint; they are not interchangeable with private IP endpoints.</p>
+<p>For Blob Storage, clients continue using <code>ACCOUNT.blob.core.windows.net</code>. Correct DNS resolves through the private-link name to a private A record from a linked private DNS zone. From on-premises, linking a zone to a VNet alone does not configure corporate DNS forwarding; Azure DNS Private Resolver or an appropriate forwarding design is needed. Testing only from a public laptop will not prove private DNS works for a VM.</p>
+<h2 id="section-4">In this repository</h2>
+<p>The Azure capstone contains a VNet, app and private-endpoint subnets, a <code>privatelink.blob.core.windows.net</code> zone, a VNet link and a private-endpoint DNS zone group. Its storage account disables public network access. Its VM has no public IP and uses managed identity for blob access.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Use familiar troubleshooting habits: resolve the name, follow the route and check the rule that actually applies.</p></div><h2 id="section-5">Lab</h2>
+<p>Select your sandbox subscription and create a fresh RG. Preserve these names in the same shell:</p>
+<pre><code class="language-bash">az account set --subscription &quot;$LAB_SUBSCRIPTION_ID&quot;
+export NET_RG=&quot;cloud-net-$(date +%s)&quot;
+az group create -n &quot;$NET_RG&quot; -l westeurope --tags Purpose=cloud-learning
+az network vnet create -g &quot;$NET_RG&quot; -n lab-vnet --address-prefixes 10.60.0.0/16 --subnet-name app --subnet-prefixes 10.60.10.0/24
+az network nsg create -g &quot;$NET_RG&quot; -n app-nsg
+az network vnet subnet update -g &quot;$NET_RG&quot; --vnet-name lab-vnet -n app --network-security-group app-nsg
+az network route-table create -g &quot;$NET_RG&quot; -n lab-routes
+az network vnet subnet update -g &quot;$NET_RG&quot; --vnet-name lab-vnet -n app --route-table lab-routes
+az network nsg rule list -g &quot;$NET_RG&quot; --nsg-name app-nsg --include-default -o table
+az network vnet subnet show -g &quot;$NET_RG&quot; --vnet-name lab-vnet -n app --query &#39;{prefix:addressPrefix,nsg:networkSecurityGroup.id,routeTable:routeTable.id}&#39;
+</code></pre>
+<p>An empty user route table does not mean no routes: system routes still apply. Do not assume new private VMs receive implicit internet egress. Explicit outbound connectivity should be designed and is provided through a NAT Gateway in the capstone.</p>
+<p>Optional deployed capstone drill: use VM Run Command from Azure 07 to run <code>getent ahostsv4 &quot;$LAB_STORAGE_FQDN&quot;</code> <strong>inside the VM</strong>, then inspect the blob private endpoint connection status and DNS A record. Controlled failure: remove only the capstone&#39;s VNet DNS link in a temporary Terraform change, review/apply it in the sandbox and repeat. Observe whether the name now resolves publicly and storage blocks the connection. Restore the link through Terraform and wait for DNS cache expiry. Record the exact result rather than assuming every resolver has the same cache.</p>
+<h2 id="section-6">Validation</h2>
+<p>The app subnet must reference the intended NSG and route table. Distinguish configured UDRs from effective NIC routes, which can be inspected only once a NIC/VM exists. For the private endpoint drill, resolve the normal storage hostname to its expected private IP from the VM, confirm private endpoint Approved, and separately test data authorization.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>If the first lookup fails, you have a starting point. Change one layer at a time and compare the result.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First check</th>
+<th>Next layer</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Blob hostname resolves publicly in VM</td>
+<td>Zone name, A record, VNet link, custom resolver</td>
+<td>Endpoint connection and public-access policy</td>
+</tr>
+<tr>
+<td>NSG appears to allow, connection times out</td>
+<td>Both NIC/subnet effective NSGs and destination listener</td>
+<td>Effective route and appliance return path</td>
+</tr>
+<tr>
+<td>On-premises fails, Azure VM works</td>
+<td>DNS forwarding and VPN/ExpressRoute path</td>
+<td>Private endpoint routing and source controls</td>
+</tr>
+<tr>
+<td>Private DNS succeeds, HTTP 403</td>
+<td>Managed identity role and firewall evidence</td>
+<td>Network reachability is not data authorization</td>
+</tr>
+</tbody></table>
+<p>Use <code>az network nic show-effective-route-table</code> and <code>az network nic list-effective-nsg</code> with the capstone NIC. For packet evidence, a paid Network Watcher connection troubleshoot/IP flow verify exercise can complement OS-level tests; static topology alone does not prove a listener is healthy.</p>
+<h2 id="section-8">Cleanup</h2>
+<pre><code class="language-bash">az group delete -n &quot;$NET_RG&quot; --yes
+az group exists -n &quot;$NET_RG&quot;
+</code></pre>
+<p>Restore any controlled DNS change before the capstone&#39;s own cleanup. Delete the capstone via Terraform, not this temporary RG command. Check private endpoint NICs and links belong to the resource group you intend to remove.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Private endpoint resolves to a public IP. Is RBAC the first fix?</strong> No. Test resolution from the workload, zone/link/forwarding and endpoint state. RBAC is a separate layer after connectivity.</p>
+<p><strong>NSG versus AWS NACL?</strong> NSGs are stateful and attach to subnet/NIC scopes; AWS NACLs are stateless subnet controls. Do not carry over ephemeral return-rule assumptions mechanically.</p>
+<p><strong>Can public access remain enabled with a private endpoint?</strong> Yes. Disable/restrict it explicitly if required, then prove that intended clients use the private path and unwanted public access fails.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Draw normal hostname → DNS chain → private IP → service → identity authorization. Show a deliberate DNS failure/recovery or label it as a planned runtime drill. Explain where effective routes differ from the table you configured.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ NSG stateful ومش نسخة من NACL. الـ private endpoint محتاج DNS صح من داخل الشبكة، ومش بيلغي public access أو بيدي صلاحيات للداتا لوحده. افصل DNS عن routing وعن RBAC في التشخيص.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview">NSG evaluation</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-udr-overview">Azure routing</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/private-link/private-endpoint-dns">Private endpoint DNS</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/ip-services/default-outbound-access">Explicit outbound connectivity</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="Creating a private endpoint does not automatically close the public service endpoint."><fieldset><legend>1. A private endpoint exists. Is public access necessarily disabled?</legend><label><input type="radio" name="question-0" value="0" required> Yes</label><label><input type="radio" name="question-0" value="1" required> No, configure the service public-access setting separately</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Private zone links and resolver paths determine the workload view."><fieldset><legend>2. Where should you test DNS for a private workload?</legend><label><input type="radio" name="question-1" value="0" required> Only a public laptop</label><label><input type="radio" name="question-1" value="1" required> Inside the workload network using its resolver</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="azure-02"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="azure-01.html">← Previous module</a><a href="/tracks/azure.html">Track overview</a><a href="azure-03.html">Next: Azure compute: VMs, scale sets and load-balancing choices →</a></nav><section class="related"><h2>Continue exploring</h2><a href="azure-01.html">Azure operating model: subscriptions, Entra ID and RBAC ↗</a><a href="azure-03.html">Azure compute: VMs, scale sets and load-balancing choices ↗</a><a href="azure-04.html">Azure services: Storage, Key Vault, identities and Monitor ↗</a><a href="azure-05.html">Azure Terraform: provider identity and Blob remote state ↗</a><a href="azure-06.html">Azure delivery: federated GitHub Actions and Azure Pipelines ↗</a><a href="azure-07.html">Azure capstone: build and diagnose a private application ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

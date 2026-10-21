@@ -1,0 +1,79 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Azure operating model: subscriptions, Entra ID and RBAC | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/azure.html">Microsoft Azure Cloud &amp; DevOps</a> / Module 1</div><section class="lesson-hero"><p class="eyebrow">Intermediate practical / 70 MIN INCLUDING PRACTICE</p><h1>Azure operating model: subscriptions, Entra ID and RBAC</h1><p>Establish tenant/subscription scope, separate management and data-plane rights, and diagnose effective Azure authorization.</p><p class="prerequisites"><b>Before you start:</b> Linux, networking and Git basics; Azure CLI; a dedicated sandbox subscription and permission to create a lab Resource Group.</p><a href="/content-source/azure-01.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Map tenant, subscription, Resource Group and resource scopes. Explain Entra identities versus Azure RBAC, select the right management/data roles and prove your active subscription before making a change.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Azure CLI and an approved sandbox subscription are required for the live lab. Obtain the subscription ID from its owner; do not choose the first subscription shown. Your account needs Resource Group creation permissions. Role assignments require additional authorization such as Role Based Access Control Administrator at the intended scope; Contributor alone does not grant that ability.</p>
+<h2 id="section-3">The problem</h2>
+<p>An Entra tenant is the identity directory; a subscription is a resource/billing boundary associated with a directory. A Resource Group is a management/lifecycle scope within a subscription, not a network boundary. A VM in one RG can communicate with a VM in another if networking permits. Policies can deny resource configurations even when RBAC allows the caller&#39;s action.</p>
+<p>Entra directory roles manage directory objects; Azure RBAC roles authorize Azure resources. Azure RBAC evaluates assignments at scopes with inheritance, applicable conditions and deny assignments. Resource management and service data planes are separate: being Contributor on a Storage Account does not automatically authorize blob reads via Entra. Some management roles can retrieve account keys, so distinguish nominal data roles from indirect access paths.</p>
+<p>For comparison with AWS, an Azure subscription is not a perfect synonym for an AWS account. An Entra tenant can serve many subscriptions; managed identities and federated workload identities are service identities, not human user accounts. Build a scope diagram before memorizing role names.</p>
+<h2 id="section-4">In this repository</h2>
+<p>Azure lab resources live under <code>golang/content/labs/azure-app/</code>. They never touch the Kubernetes cluster or learning application&#39;s user store. The capstone creates an isolated RG and uses an explicit subscription variable. Existing OIDC sign-in for this website remains unchanged.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>A new cloud does not erase your existing skills. Start by mapping the scopes and identities, then test one permission.</p></div><h2 id="section-5">Lab</h2>
+<pre><code class="language-bash">az login
+export LAB_SUBSCRIPTION_ID=&#39;REPLACE_WITH_YOUR_SANDBOX_SUBSCRIPTION&#39;
+az account set --subscription &quot;$LAB_SUBSCRIPTION_ID&quot;
+az account show --query &#39;{subscription:id,tenant:tenantId,name:name,user:user.name}&#39; -o json
+export LAB_RG=&quot;cloud-learning-$(date +%s)&quot;
+export LAB_LOCATION=westeurope
+az group create --name &quot;$LAB_RG&quot; --location &quot;$LAB_LOCATION&quot; --tags Purpose=cloud-learning
+SCOPE=$(az group show --name &quot;$LAB_RG&quot; --query id -o tsv)
+az role assignment list --scope &quot;$SCOPE&quot; --include-inherited --all --query &#39;[].{Role:roleDefinitionName,Scope:scope,Type:principalType}&#39; -o table
+az role definition list --name Contributor --query &#39;[0].permissions&#39; -o json
+az role definition list --name &#39;Storage Blob Data Reader&#39; --query &#39;[0].permissions&#39; -o json
+</code></pre>
+<p>Compare <code>actions</code> to <code>dataActions</code>. List the exact effective assignment that permits RG creation and identify where it was inherited. On an organization-managed account, inability to list assignments can itself require a separate permission; do not interpret an empty/denied listing as proof of no access.</p>
+<p>Create a local table with three principals (human operator, CI identity, VM managed identity) and three tasks (create VM, read blob, read Key Vault secret). Assign the narrowest appropriate scope and role for each. Have an authorized administrator optionally grant Reader to a disposable principal at this RG; demonstrate that it can inspect metadata but cannot create resources. Record the assignment ID if you do this extension so cleanup is precise.</p>
+<h2 id="section-6">Validation</h2>
+<p>The account output must match the approved subscription and tenant. The new RG should have the Purpose tag. Your role matrix must distinguish management reads from blob/secret data reads, and describe which identity can grant roles. No VM or chargeable compute is created in this module.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>Keep your scope diagram nearby. The next modules will give those boundaries a network and an application.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Evidence</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Subscription not found</td>
+<td>Active tenant and available subscriptions</td>
+<td>Select correct directory; request access</td>
+</tr>
+<tr>
+<td>AuthorizationFailed</td>
+<td>Caller object ID, action and scope</td>
+<td>Find missing role at the correct scope</td>
+</tr>
+<tr>
+<td>RequestDisallowedByPolicy</td>
+<td>Policy assignment/details</td>
+<td>Use an approved region/SKU; don&#39;t broaden RBAC</td>
+</tr>
+<tr>
+<td>Role granted, access still fails</td>
+<td>Token refresh, propagation, correct principal object ID</td>
+<td>Retry after propagation; verify scope and data plane</td>
+</tr>
+</tbody></table>
+<p>Do not solve a data-plane failure by granting Owner. For service principals, application/client ID and service-principal object ID are different identifiers. Role assignments typically target the principal object ID.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Delete only optional role assignments created for this lab using their recorded assignment IDs. Then remove this empty lab RG:</p>
+<pre><code class="language-bash">az group delete --name &quot;$LAB_RG&quot; --yes
+az group exists --name &quot;$LAB_RG&quot;
+</code></pre>
+<p>Expect <code>false</code> after deletion finishes. Never delete an RG whose inventory includes resources owned by another exercise or team.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Why can Contributor create a storage account but fail to read blobs?</strong> Management actions and dataActions are distinct. Check the chosen auth mode, data role, scope and network boundary; keys can introduce alternate access if permitted.</p>
+<p><strong>Where should CI permissions be assigned?</strong> At the smallest resource/RG scope needed, with a separate controlled identity for bootstrap role assignments. Subscription-wide Owner is not a default deployment requirement.</p>
+<p><strong>How do you prevent deployment to the wrong subscription?</strong> Explicit account selection, provider subscription ID, pipeline identity checks, scoped service connections and policy. Naming conventions alone do not enforce the boundary.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Draw your tenant/subscription/RG/resource hierarchy and explain inherited roles aloud. Keep a redacted account check, role matrix and cleanup result as evidence.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ Entra tenant للهوية، والـ subscription للموارد والفوترة، والـ Resource Group لإدارة دورة الحياة. فرّق بين إدارة المورد وقراءة الداتا داخله، واتأكد من subscription والـ scope قبل أي تعديل.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/azure/role-based-access-control/scope-overview">Azure RBAC scope</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/role-based-access-control/rbac-and-directory-admin-roles">Azure roles and Entra roles</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/role-based-access-control/role-definitions">Azure role definitions</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="RGs organize management and lifecycle; they do not create network isolation."><fieldset><legend>1. Is a Resource Group a network isolation boundary?</legend><label><input type="radio" name="question-0" value="0" required> Yes</label><label><input type="radio" name="question-0" value="1" required> No; routing and network controls determine reachability</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Management actions and dataActions are separate."><fieldset><legend>2. Does Contributor always grant blob reads using Entra authentication?</legend><label><input type="radio" name="question-1" value="0" required> Yes</label><label><input type="radio" name="question-1" value="1" required> No; data-plane authorization must be checked</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="azure-01"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="/tracks/azure.html">Track overview</a><a href="azure-02.html">Next: Azure networking: NSGs, routes, private endpoints and DNS →</a></nav><section class="related"><h2>Continue exploring</h2><a href="azure-02.html">Azure networking: NSGs, routes, private endpoints and DNS ↗</a><a href="azure-03.html">Azure compute: VMs, scale sets and load-balancing choices ↗</a><a href="azure-04.html">Azure services: Storage, Key Vault, identities and Monitor ↗</a><a href="azure-05.html">Azure Terraform: provider identity and Blob remote state ↗</a><a href="azure-06.html">Azure delivery: federated GitHub Actions and Azure Pipelines ↗</a><a href="azure-07.html">Azure capstone: build and diagnose a private application ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

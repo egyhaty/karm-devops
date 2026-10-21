@@ -1,0 +1,84 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AWS identity: roles, STS and secret boundaries | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/aws.html">AWS Cloud &amp; DevOps</a> / Module 2</div><section class="lesson-hero"><p class="eyebrow">Advanced practical / 85 MIN INCLUDING PRACTICE</p><h1>AWS identity: roles, STS and secret boundaries</h1><p>Separate trust from permissions, evaluate least privilege, and retrieve secrets through a workload role rather than embedded credentials.</p><p class="prerequisites"><b>Before you start:</b> AWS 01; sandbox IAM role-management permissions; AWS CLI v2 and jq.</p><a href="/content-source/aws-02.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Explain who may assume a role versus what that role may do. Diagnose identity-policy, resource-policy and organization-boundary denies. Retrieve a secret without printing its payload. Map Kubernetes workload identity concepts to EC2 instance profiles and STS sessions.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Complete AWS 01. Work in an account where an administrator has permitted a lab role prefix. You need IAM create/delete/simulate permissions only within that sandbox. Do not add AdministratorAccess as a troubleshooting shortcut. The local policy lab creates no secrets or compute. Secret inspection later uses only the capstone&#39;s generated secret.</p>
+<h2 id="section-3">The problem</h2>
+<p>A role is not a long-lived access key. Its trust policy permits a principal to request an STS session; its permissions policy authorizes actions after assumption. An EC2 instance profile delivers role credentials through instance metadata. IMDSv2 reduces metadata abuse but does not compensate for a role allowed to read every secret. Workloads should ask the SDK credential chain for credentials and handle rotation rather than copy credentials into <code>.env</code>.</p>
+<p>Identity policies, resource policies, session policies, permissions boundaries and service control policies can all constrain effective access. Explicit deny wins. Same-account and cross-account evaluation differ; cross-account access generally needs both sides to allow. KMS adds another authorization boundary for customer-managed keys. A Secrets Manager allow does not automatically supply <code>kms:Decrypt</code> where that key requires it.</p>
+<h2 id="section-4">In this repository</h2>
+<p>The capstone&#39;s <code>main.tf</code> grants <code>secretsmanager:GetSecretValue</code> for one RDS-managed secret, uses the EC2 service principal in its trust policy, and enables IMDSv2 in the launch template. Existing app secrets under <code>sealed-secrets/</code> are unrelated. Never copy those into the cloud labs.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Start with one identity, one action and one resource. Clear boundaries beat a policy full of guesses.</p></div><h2 id="section-5">Lab</h2>
+<p>Confirm identity, then write a trust document and a scoped permissions document. Substitute the account returned by STS, not an account copied from a tutorial:</p>
+<pre><code class="language-bash">export AWS_PROFILE=cloud-lab AWS_REGION=eu-west-1
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+cat &gt; /tmp/cloud-lab-trust.json &lt;&lt;&#39;JSON&#39;
+{&quot;Version&quot;:&quot;2012-10-17&quot;,&quot;Statement&quot;:[{&quot;Effect&quot;:&quot;Allow&quot;,&quot;Principal&quot;:{&quot;Service&quot;:&quot;ec2.amazonaws.com&quot;},&quot;Action&quot;:&quot;sts:AssumeRole&quot;}]}
+JSON
+cat &gt; /tmp/cloud-lab-secret-policy.json &lt;&lt;JSON
+{&quot;Version&quot;:&quot;2012-10-17&quot;,&quot;Statement&quot;:[{&quot;Effect&quot;:&quot;Allow&quot;,&quot;Action&quot;:&quot;secretsmanager:GetSecretValue&quot;,&quot;Resource&quot;:&quot;arn:aws:secretsmanager:${AWS_REGION}:${ACCOUNT_ID}:secret:cloud-lab-*&quot;}]}
+JSON
+ROLE_ARN=$(aws iam create-role --role-name cloud-learning-instance --assume-role-policy-document file:///tmp/cloud-lab-trust.json --query Role.Arn --output text)
+aws iam put-role-policy --role-name cloud-learning-instance --policy-name OneSecretPrefix --policy-document file:///tmp/cloud-lab-secret-policy.json
+aws iam simulate-principal-policy --policy-source-arn &quot;$ROLE_ARN&quot; --action-names secretsmanager:GetSecretValue secretsmanager:DeleteSecret --resource-arns &quot;arn:aws:secretsmanager:${AWS_REGION}:${ACCOUNT_ID}:secret:cloud-lab-example&quot; --query &#39;EvaluationResults[].{Action:EvalActionName,Decision:EvalDecision}&#39;
+</code></pre>
+<p>Expect GetSecretValue allowed and DeleteSecret implicitly denied in this identity-policy simulation. Repeat against a secret ARN outside the prefix: GetSecretValue should be denied. The IAM simulator is useful evidence about the supplied policy, not proof of end-to-end live access or all SCP/resource-policy effects.</p>
+<p>Try explaining why <code>aws sts assume-role --role-arn &quot;$ROLE_ARN&quot; ...</code> from your human CLI is denied: the trust principal here is EC2, not your human identity. Do not change it to <code>Principal: &quot;*&quot;</code> to make a test pass. For a real STS experiment, have the sandbox administrator supply a separate role that trusts your exact lab principal and grants read-only access; call <code>aws sts assume-role --role-arn &quot;$READONLY_ROLE_ARN&quot; --role-session-name interview-lab --query &#39;AssumedRoleUser.Arn&#39;</code>. This proves assumption without exposing temporary keys.</p>
+<p>After the capstone is deployed by the learner, enter an app instance using SSM and run:</p>
+<pre><code class="language-bash">aws sts get-caller-identity --query Arn --output text
+aws secretsmanager describe-secret --secret-id &quot;$LAB_SECRET_ARN&quot; --query &#39;{Rotation:RotationEnabled,LastChanged:LastChangedDate}&#39;
+aws secretsmanager get-secret-value --secret-id &quot;$LAB_SECRET_ARN&quot; --query VersionId --output text
+</code></pre>
+<p>The instance role intentionally allows GetSecretValue only; DescribeSecret may be denied. Record that as least-privilege evidence, not a broken app. Never request <code>SecretString</code> in shared terminal output. The bootstrap consumes it in memory to create a local configuration file.</p>
+<h2 id="section-6">Validation</h2>
+<p>Keep the three simulator decisions and role ARN with the account redacted. Verify the policy does not allow deletion or unrelated secrets. On EC2, verify an assumed-role identity instead of an IAM user&#39;s access-key identity. Confirm the secret value is absent from user data, Terraform outputs and captured logs. The RDS-managed password remains service-managed; local app configuration must be refreshed if it rotates.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>A denied request can be a successful security test. Explain which boundary held before changing it.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Investigate</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AssumeRole AccessDenied</td>
+<td>Caller identity, trust principal/conditions, caller permission</td>
+<td>Fix the narrow trust or permission, not both blindly</td>
+</tr>
+<tr>
+<td>GetSecretValue AccessDenied</td>
+<td>Exact resource ARN and suffix, boundary/SCP, KMS key</td>
+<td>Grant only missing scope after evidence</td>
+</tr>
+<tr>
+<td>SDK has no credentials</td>
+<td>Instance profile attachment, IMDS settings, credential-chain overrides</td>
+<td>Remove stale environment keys; restore profile</td>
+</tr>
+<tr>
+<td>Secret works until rotation</td>
+<td>Cached credential lifetime and application reload</td>
+<td>Refresh/reload configuration; plan overlap</td>
+</tr>
+</tbody></table>
+<h2 id="section-8">Cleanup</h2>
+<pre><code class="language-bash">aws iam delete-role-policy --role-name cloud-learning-instance --policy-name OneSecretPrefix
+aws iam delete-role --role-name cloud-learning-instance
+rm -f /tmp/cloud-lab-trust.json /tmp/cloud-lab-secret-policy.json
+</code></pre>
+<p>If you created an instance profile, remove its role and delete the profile before deleting the role. Do not delete the capstone role from this lab&#39;s commands; Terraform owns that separate role.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Trust policy versus permission policy?</strong> Trust determines who can obtain a session; permissions determine what the session can do. A successful assumption followed by S3 AccessDenied proves the first boundary passed, not the second.</p>
+<p><strong>How do you reduce CI credential risk?</strong> Use federation with short sessions, repository/environment-scoped trust, least-privilege roles, protected approvals and isolated state. Avoid access-key rotation chores by not issuing static CI keys.</p>
+<p><strong>Is a masked Terraform output enough for secrets?</strong> No. Sensitive values can still be stored in state and plans. Use workload retrieval, encrypted restricted state, and secret-safe logs. Marking a value sensitive changes display, not its persistence.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Present an allow/deny matrix for two actions and two resources. Explain why a successful IAM simulation can still fail in a live organization. Demonstrate cleanup and identify which policy grants each permission used by the capstone.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ trust policy بتحدد مين يلبس الـ role، والـ permissions بتحدد يعمل إيه بعد كده. استخدم credentials مؤقتة من STS وخلّي التطبيق يقرأ secret محدد بهويته، بدل ما تحط مفاتيح ثابتة في الكود أو اللوجات.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html">IAM policy evaluation</a></li>
+<li><a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html">Temporary role credentials</a></li>
+<li><a href="https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access.html">Secrets Manager permissions</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="0" data-explanation="Obtaining a session does not grant every service action."><fieldset><legend>1. AssumeRole succeeds but GetSecretValue fails. Which boundary passed?</legend><label><input type="radio" name="question-0" value="0" required> Role trust/assumption</label><label><input type="radio" name="question-0" value="1" required> All resource authorization</label><label><input type="radio" name="question-0" value="2" required> KMS authorization</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Sensitive controls presentation; state and plan access still need protection."><fieldset><legend>2. Does Terraform sensitive=true remove a password from state?</legend><label><input type="radio" name="question-1" value="0" required> Yes</label><label><input type="radio" name="question-1" value="1" required> No</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="aws-02"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="aws-01.html">← Previous module</a><a href="/tracks/aws.html">Track overview</a><a href="aws-03.html">Next: AWS compute: ALB health, launch templates and recovery →</a></nav><section class="related"><h2>Continue exploring</h2><a href="aws-01.html">AWS networking: trace the packet, prove the route ↗</a><a href="aws-03.html">AWS compute: ALB health, launch templates and recovery ↗</a><a href="aws-04.html">AWS data: RDS, S3, recovery and cost tradeoffs ↗</a><a href="aws-05.html">AWS Terraform: modules, state, drift and lifecycle ↗</a><a href="aws-06.html">AWS delivery: GitHub OIDC and reviewed Terraform plans ↗</a><a href="aws-07.html">AWS capstone: a secure, highly available WordPress service ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

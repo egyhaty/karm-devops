@@ -77,8 +77,52 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:ci-disposable-only@localhost:5432/makan_test
       - run: npm ci && npm test
         working-directory: golang/content
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: golang/go.mod
+      - name: Go tests and migration compatibility (disposable PostgreSQL)
+        working-directory: golang
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:ci-disposable-only@localhost:5432/makan_test
+        run: |
+          go test -race ./...
+          go vet ./...
+      - name: Local cloud application contract tests (no cloud calls)
+        run: python3 -m unittest discover -s golang/content/tests -p '*_test.py'
       - name: Ensure generated lessons match Markdown
-        run: git diff --exit-code -- golang/web/lessons golang/web/content-source golang/web/library-index.json
+        run: git diff --exit-code -- golang/web/lessons golang/web/content-source golang/web/library-index.json golang/web/tracks golang/web/study-plan.html golang/web/labs
+
+  cloud-labs:
+    name: Cloud lesson Terraform validation (no deployment)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        lab: [aws-wordpress, azure-app]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+      - name: Validate standalone lab
+        working-directory: golang/content/labs/${{ matrix.lab }}
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false -lockfile=readonly
+          terraform validate
+      - name: Mock AWS architecture test (no API calls)
+        if: matrix.lab == 'aws-wordpress'
+        working-directory: golang/content/labs/aws-wordpress
+        run: terraform test
+      - name: Validate optional Azure compute configurations
+        if: matrix.lab == 'azure-app'
+        working-directory: golang/content/labs/azure-app
+        run: |
+          cp vmss.tf.example vmss.tf
+          cp application-gateway.tf.example application-gateway.tf
+          cp key-vault.tf.example key-vault.tf
+          terraform fmt -check
+          terraform validate
 
   terraform:
     name: Terraform validation

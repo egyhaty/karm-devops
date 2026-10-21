@@ -1,0 +1,27 @@
+#cloud-config
+write_files:
+  - path: /opt/cloud-lab/app.py
+    permissions: '0644'
+    content: |
+      ${indent(6, app)}
+  - path: /etc/systemd/system/cloud-lab-app.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Cloud learning private application
+      After=network-online.target
+      Wants=network-online.target
+      [Service]
+      User=nobody
+      Environment=LAB_STORAGE_ACCOUNT=${storage_account}
+      ExecStart=/usr/bin/python3 /opt/cloud-lab/app.py
+      Restart=on-failure
+      NoNewPrivileges=true
+      ProtectSystem=strict
+      ProtectHome=true
+      PrivateTmp=true
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, cloud-lab-app]

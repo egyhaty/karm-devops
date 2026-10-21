@@ -1,5 +1,515 @@
 [
-  {"id":"docker","title":"Docker: build, run and diagnose","track":"Containers","minutes":60,"level":"Foundation","prerequisites":"A terminal, Docker and a local checkout","summary":"Read the actual Dockerfile, observe build caching, run Makan and diagnose a failed port mapping."},
-  {"id":"git","title":"Git: ship a change you can undo","track":"Delivery","minutes":45,"level":"Foundation","prerequisites":"Git and a local checkout","summary":"Make a focused branch, inspect a diff, resolve a conflict and revert a change without rewriting shared history."},
-  {"id":"network-policy","title":"Cilium, Flannel and NetworkPolicy","track":"Networking","minutes":70,"level":"Intermediate","prerequisites":"kubectl, a disposable cluster with a policy-capable CNI","summary":"Separate networking from ingress, test isolation and restore only the traffic your service needs."}
+  {
+    "id": "docker",
+    "title": "Docker: build, run and diagnose",
+    "track": "Containers",
+    "minutes": 60,
+    "level": "Foundation",
+    "prerequisites": "A terminal, Docker and a local checkout",
+    "summary": "Read the actual Dockerfile, observe build caching, run Makan and diagnose a failed port mapping."
+  },
+  {
+    "id": "git",
+    "title": "Git: ship a change you can undo",
+    "track": "Delivery",
+    "minutes": 45,
+    "level": "Foundation",
+    "prerequisites": "Git and a local checkout",
+    "summary": "Make a focused branch, inspect a diff, resolve a conflict and revert a change without rewriting shared history."
+  },
+  {
+    "id": "network-policy",
+    "title": "Cilium, Flannel and NetworkPolicy",
+    "track": "Networking",
+    "minutes": 70,
+    "level": "Intermediate",
+    "prerequisites": "kubectl, a disposable cluster with a policy-capable CNI",
+    "summary": "Separate networking from ingress, test isolation and restore only the traffic your service needs."
+  },
+  {
+    "id": "aws-01",
+    "title": "AWS networking: trace the packet, prove the route",
+    "track": "AWS Cloud & DevOps",
+    "trackId": "aws",
+    "minutes": 100,
+    "level": "Advanced practical",
+    "prerequisites": "Linux routing and DNS; AWS CLI v2; a disposable AWS account with VPC permissions.",
+    "summary": "Build a private network boundary, explain NAT versus IGW, and diagnose SG, NACL and return-path failures.",
+    "quiz": [
+      {
+        "question": "Which change alone makes an EC2 instance internet reachable?",
+        "choices": [
+          "An IGW attached to its VPC",
+          "An allow-all SG",
+          "None: address, route and controls must all align"
+        ],
+        "answer": 2,
+        "explanation": "An IGW attachment alone supplies neither a subnet route nor a public IPv4 association."
+      },
+      {
+        "question": "Which rule set needs explicit return ephemeral-port rules?",
+        "choices": [
+          "Security groups for tracked connections",
+          "Stateless NACLs",
+          "IAM trust policies"
+        ],
+        "answer": 1,
+        "explanation": "NACLs evaluate each direction independently."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Trace one connection at a time. Once the packet path makes sense, the service names become easier to remember.",
+      "afterValidation": "You have a route to follow now. Treat the next failed connection as evidence, not a reason to start over."
+    }
+  },
+  {
+    "id": "aws-02",
+    "title": "AWS identity: roles, STS and secret boundaries",
+    "track": "AWS Cloud & DevOps",
+    "trackId": "aws",
+    "minutes": 85,
+    "level": "Advanced practical",
+    "prerequisites": "AWS 01; sandbox IAM role-management permissions; AWS CLI v2 and jq.",
+    "summary": "Separate trust from permissions, evaluate least privilege, and retrieve secrets through a workload role rather than embedded credentials.",
+    "quiz": [
+      {
+        "question": "AssumeRole succeeds but GetSecretValue fails. Which boundary passed?",
+        "choices": [
+          "Role trust/assumption",
+          "All resource authorization",
+          "KMS authorization"
+        ],
+        "answer": 0,
+        "explanation": "Obtaining a session does not grant every service action."
+      },
+      {
+        "question": "Does Terraform sensitive=true remove a password from state?",
+        "choices": [
+          "Yes",
+          "No"
+        ],
+        "answer": 1,
+        "explanation": "Sensitive controls presentation; state and plan access still need protection."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Start with one identity, one action and one resource. Clear boundaries beat a policy full of guesses.",
+      "afterValidation": "A denied request can be a successful security test. Explain which boundary held before changing it."
+    }
+  },
+  {
+    "id": "aws-03",
+    "title": "AWS compute: ALB health, launch templates and recovery",
+    "track": "AWS Cloud & DevOps",
+    "trackId": "aws",
+    "minutes": 95,
+    "level": "Advanced practical",
+    "prerequisites": "AWS 01–02; Terraform CLI; optional learner-deployed capstone for runtime drills.",
+    "summary": "Operate EC2 behind an ALB, distinguish probe success from readiness, and diagnose Auto Scaling replacement loops.",
+    "quiz": [
+      {
+        "question": "A DB outage makes every deep probe fail. Should EC2 replacement be the primary repair?",
+        "choices": [
+          "Yes, replace all instances",
+          "No, isolate the shared dependency failure"
+        ],
+        "answer": 1,
+        "explanation": "Replacing healthy processes does not restore a shared database and can amplify disruption."
+      },
+      {
+        "question": "Does a new launch-template version update all existing instances automatically?",
+        "choices": [
+          "Always",
+          "No; use a controlled replacement/refresh strategy"
+        ],
+        "answer": 1,
+        "explanation": "Templates define future launches. Existing instances need an explicit rollout."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Make the smallest failure you can observe. A short, clear recovery timeline teaches more than a large uncontrolled outage.",
+      "afterValidation": "Keep the evidence from your recovery drill. You are building an explanation you can reproduce, not just a working screenshot."
+    }
+  },
+  {
+    "id": "aws-04",
+    "title": "AWS data: RDS, S3, recovery and cost tradeoffs",
+    "track": "AWS Cloud & DevOps",
+    "trackId": "aws",
+    "minutes": 95,
+    "level": "Advanced practical",
+    "prerequisites": "AWS 01–03; AWS CLI; optional capstone RDS and a learner-owned S3 test bucket.",
+    "summary": "Distinguish availability from recovery, test versioned object restoration, and design measurable RPO/RTO for WordPress.",
+    "quiz": [
+      {
+        "question": "What protects against an application deleting valid rows?",
+        "choices": [
+          "Multi-AZ alone",
+          "Tested backups/PITR with a cutover runbook",
+          "More app replicas alone"
+        ],
+        "answer": 1,
+        "explanation": "Availability replicas do not preserve independent historical application state."
+      },
+      {
+        "question": "Does deleting current objects empty a versioned bucket completely?",
+        "choices": [
+          "Yes",
+          "No, retained versions and markers remain"
+        ],
+        "answer": 1,
+        "explanation": "Old versions and delete markers must also be considered."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Recovery is a skill you can practise. Begin with one harmless object and prove that the original bytes come back.",
+      "afterValidation": "A tested restore is worth keeping in your notes. Be clear about what you recovered and what still needs a rehearsal."
+    }
+  },
+  {
+    "id": "aws-05",
+    "title": "AWS Terraform: modules, state, drift and lifecycle",
+    "track": "AWS Cloud & DevOps",
+    "trackId": "aws",
+    "minutes": 100,
+    "level": "Advanced practical",
+    "prerequisites": "AWS networking and IAM; Terraform 1.10+; sandbox state bucket provisioned separately.",
+    "summary": "Review reusable boundaries, migrate state safely, detect drift without applying, and understand destructive lifecycle changes.",
+    "quiz": [
+      {
+        "question": "What does plan -refresh-only propose?",
+        "choices": [
+          "Restoring every remote object to code",
+          "Updating recorded state to observed reality",
+          "Deleting missing resources automatically"
+        ],
+        "answer": 1,
+        "explanation": "Refresh-only proposes state updates; a normal plan proposes infrastructure reconciliation."
+      },
+      {
+        "question": "Which detailed-exitcode indicates a successful plan with changes?",
+        "choices": [
+          "0",
+          "1",
+          "2"
+        ],
+        "answer": 2,
+        "explanation": "0 means no changes, 1 error, 2 successful with differences."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Slow down at the plan. Understanding one proposed change is progress, even when the right decision is not to apply it.",
+      "afterValidation": "You do not need to fix drift blindly. Classify the change, choose the owner and make the next action deliberate."
+    }
+  },
+  {
+    "id": "aws-06",
+    "title": "AWS delivery: GitHub OIDC and reviewed Terraform plans",
+    "track": "AWS Cloud & DevOps",
+    "trackId": "aws",
+    "minutes": 85,
+    "level": "Advanced practical",
+    "prerequisites": "AWS 02 and 05; a separate sandbox GitHub repository; permission to create a scoped federated role.",
+    "summary": "Replace static CI keys with scoped federation and design a reviewed deployment boundary that untrusted pull requests cannot cross.",
+    "quiz": [
+      {
+        "question": "A job uses a GitHub environment. Which subject must trust match?",
+        "choices": [
+          "Only its branch name",
+          "Its environment subject",
+          "Any repository in the organization"
+        ],
+        "answer": 1,
+        "explanation": "Environment jobs carry an environment subject; protection rules must also be configured."
+      },
+      {
+        "question": "What should an untrusted PR receive?",
+        "choices": [
+          "A production apply role",
+          "Credential-free checks, not privileged Terraform execution"
+        ],
+        "answer": 1,
+        "explanation": "Untrusted Terraform/provider code must not run with deployment credentials."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Follow the identity exchange step by step. A narrow trust rule is easier to defend than a convenient wildcard.",
+      "afterValidation": "A pipeline refusing the wrong identity is doing its job. Keep that failed test alongside the successful run."
+    }
+  },
+  {
+    "id": "aws-07",
+    "title": "AWS capstone: a secure, highly available WordPress service",
+    "track": "AWS Cloud & DevOps",
+    "trackId": "aws",
+    "minutes": 160,
+    "level": "Advanced practical",
+    "prerequisites": "AWS 01–06; Terraform 1.10+; dedicated account; approved budget; existing ACM certificate and matching DNS name.",
+    "summary": "Deploy and defend two-AZ WordPress with private EC2, ALB TLS, shared EFS, Multi-AZ RDS and role-based secrets; prove failure recovery and tear it down.",
+    "quiz": [
+      {
+        "question": "What makes uploads survive app-instance replacement?",
+        "choices": [
+          "ALB sticky sessions alone",
+          "A shared durable filesystem plus a separate backup strategy",
+          "A larger root disk alone"
+        ],
+        "answer": 1,
+        "explanation": "Shared EFS keeps uploads visible across instances; backups address historical recovery."
+      },
+      {
+        "question": "Does a green shallow probe prove historical restore or credential rotation works?",
+        "choices": [
+          "Yes",
+          "No, those require separate drills"
+        ],
+        "answer": 1,
+        "explanation": "Each health/recovery claim needs its own evidence."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Bring the pieces together one boundary at a time. Review the plan, prove the path, then test a small failure.",
+      "afterValidation": "You have reached the integration stage. An honest record of what worked, failed and remains untested makes this project stronger."
+    }
+  },
+  {
+    "id": "azure-01",
+    "title": "Azure operating model: subscriptions, Entra ID and RBAC",
+    "track": "Microsoft Azure Cloud & DevOps",
+    "trackId": "azure",
+    "minutes": 70,
+    "level": "Intermediate practical",
+    "prerequisites": "Linux, networking and Git basics; Azure CLI; a dedicated sandbox subscription and permission to create a lab Resource Group.",
+    "summary": "Establish tenant/subscription scope, separate management and data-plane rights, and diagnose effective Azure authorization.",
+    "quiz": [
+      {
+        "question": "Is a Resource Group a network isolation boundary?",
+        "choices": [
+          "Yes",
+          "No; routing and network controls determine reachability"
+        ],
+        "answer": 1,
+        "explanation": "RGs organize management and lifecycle; they do not create network isolation."
+      },
+      {
+        "question": "Does Contributor always grant blob reads using Entra authentication?",
+        "choices": [
+          "Yes",
+          "No; data-plane authorization must be checked"
+        ],
+        "answer": 1,
+        "explanation": "Management actions and dataActions are separate."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "A new cloud does not erase your existing skills. Start by mapping the scopes and identities, then test one permission.",
+      "afterValidation": "Keep your scope diagram nearby. The next modules will give those boundaries a network and an application."
+    }
+  },
+  {
+    "id": "azure-02",
+    "title": "Azure networking: NSGs, routes, private endpoints and DNS",
+    "track": "Microsoft Azure Cloud & DevOps",
+    "trackId": "azure",
+    "minutes": 85,
+    "level": "Intermediate practical",
+    "prerequisites": "Azure 01; Azure CLI; sandbox VNet rights; basic TCP and DNS diagnosis.",
+    "summary": "Trace effective routes and NSGs, distinguish private endpoints from service endpoints, and diagnose private DNS from the workload.",
+    "quiz": [
+      {
+        "question": "A private endpoint exists. Is public access necessarily disabled?",
+        "choices": [
+          "Yes",
+          "No, configure the service public-access setting separately"
+        ],
+        "answer": 1,
+        "explanation": "Creating a private endpoint does not automatically close the public service endpoint."
+      },
+      {
+        "question": "Where should you test DNS for a private workload?",
+        "choices": [
+          "Only a public laptop",
+          "Inside the workload network using its resolver"
+        ],
+        "answer": 1,
+        "explanation": "Private zone links and resolver paths determine the workload view."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Use familiar troubleshooting habits: resolve the name, follow the route and check the rule that actually applies.",
+      "afterValidation": "If the first lookup fails, you have a starting point. Change one layer at a time and compare the result."
+    }
+  },
+  {
+    "id": "azure-03",
+    "title": "Azure compute: VMs, scale sets and load-balancing choices",
+    "track": "Microsoft Azure Cloud & DevOps",
+    "trackId": "azure",
+    "minutes": 75,
+    "level": "Intermediate practical",
+    "prerequisites": "Azure 01–02; Azure CLI; optional Azure 07 capstone for private VM runtime inspection.",
+    "summary": "Choose L4 versus L7 ingress, inspect private VM health and explain VMSS rollout, probes and availability choices.",
+    "quiz": [
+      {
+        "question": "Which service directly fits host/path-based HTTP routing and WAF?",
+        "choices": [
+          "Azure Load Balancer",
+          "Application Gateway"
+        ],
+        "answer": 1,
+        "explanation": "Application Gateway provides L7 HTTP routing and WAF options."
+      },
+      {
+        "question": "Does one running VM prove application high availability?",
+        "choices": [
+          "Yes",
+          "No"
+        ],
+        "answer": 1,
+        "explanation": "Process readiness and independent failure domains need separate validation."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Start with a listener you can test. Build confidence in the private path before adding another scaling or routing layer.",
+      "afterValidation": "A running VM and a ready application are different achievements. Your evidence should make the difference clear."
+    }
+  },
+  {
+    "id": "azure-04",
+    "title": "Azure services: Storage, Key Vault, identities and Monitor",
+    "track": "Microsoft Azure Cloud & DevOps",
+    "trackId": "azure",
+    "minutes": 85,
+    "level": "Intermediate practical",
+    "prerequisites": "Azure 01–03; optional deployed Azure capstone; data-role assignment rights for extensions.",
+    "summary": "Trace VM managed identity to private Blob access, distinguish Key Vault network and role failures, and collect useful operating signals.",
+    "quiz": [
+      {
+        "question": "Does a managed identity token itself grant Blob access?",
+        "choices": [
+          "Yes",
+          "No; the data role and network path must also permit it"
+        ],
+        "answer": 1,
+        "explanation": "Authentication, authorization and connectivity are distinct."
+      },
+      {
+        "question": "Which signal records Azure control-plane changes?",
+        "choices": [
+          "Activity Log",
+          "Unconfigured guest stdout",
+          "A token audience"
+        ],
+        "answer": 0,
+        "explanation": "Activity Log records control-plane operations; guest logs need an ingestion path."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Take the token, role and network checks separately. You do not have to solve every layer at once.",
+      "afterValidation": "Keep one successful check and one useful failure. Together they show that you understand the access boundary."
+    }
+  },
+  {
+    "id": "azure-05",
+    "title": "Azure Terraform: provider identity and Blob remote state",
+    "track": "Microsoft Azure Cloud & DevOps",
+    "trackId": "azure",
+    "minutes": 80,
+    "level": "Intermediate practical",
+    "prerequisites": "Azure 01–04; Terraform 1.10+; separate sandbox state Storage Account/container.",
+    "summary": "Separate provider and backend authentication, use Entra-authorized state, and recover safely from drift and orphaned Blob leases.",
+    "quiz": [
+      {
+        "question": "Which component locks Azure Blob state?",
+        "choices": [
+          "The backend using a Blob lease",
+          "The VM NSG",
+          "Only GitHub concurrency"
+        ],
+        "answer": 0,
+        "explanation": "The AzureRM backend uses native Blob locking/consistency capabilities."
+      },
+      {
+        "question": "Should the workload destroy also delete its own backend?",
+        "choices": [
+          "Yes",
+          "No, keep backend bootstrap/lifecycle separate"
+        ],
+        "answer": 1,
+        "explanation": "Independent backend lifecycle preserves the state and recovery boundary."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Keep the backend and provider paths separate in your notes. Two clear diagrams are better than one confusing error.",
+      "afterValidation": "A reviewed no-change plan is useful evidence too. Predictability is part of operating infrastructure well."
+    }
+  },
+  {
+    "id": "azure-06",
+    "title": "Azure delivery: federated GitHub Actions and Azure Pipelines",
+    "track": "Microsoft Azure Cloud & DevOps",
+    "trackId": "azure",
+    "minutes": 75,
+    "level": "Intermediate practical",
+    "prerequisites": "Azure 01 and 05; separate sandbox repo/project; Entra application/identity and federated-credential administration.",
+    "summary": "Configure workload federation in both CI systems, protect service connections, and separate preview from approved apply.",
+    "quiz": [
+      {
+        "question": "Can you reuse GitHub issuer/subject values unchanged for Azure DevOps?",
+        "choices": [
+          "Yes",
+          "No; trust the actual service-connection claims"
+        ],
+        "answer": 1,
+        "explanation": "The CI systems have distinct federation issuers/subjects."
+      },
+      {
+        "question": "Where should an independently administered deployment gate live?",
+        "choices": [
+          "Only in contributor-editable YAML",
+          "In protected environment/resource checks"
+        ],
+        "answer": 1,
+        "explanation": "External checks prevent a pipeline edit from removing its own approval boundary."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "Work through one CI system first. Once its trust boundary is clear, compare the other system deliberately.",
+      "afterValidation": "Protecting the path matters as much as making it run. Keep the denied identity test in your evidence."
+    }
+  },
+  {
+    "id": "azure-07",
+    "title": "Azure capstone: build and diagnose a private application",
+    "track": "Microsoft Azure Cloud & DevOps",
+    "trackId": "azure",
+    "minutes": 130,
+    "level": "Intermediate practical",
+    "prerequisites": "Azure 01–06; Terraform 1.10+; sandbox budget and quotas; SSH public key; Azure CLI.",
+    "summary": "Build a private VM application behind an internal load balancer, authorize private Blob access through managed identity, and diagnose DNS, process and RBAC failures.",
+    "quiz": [
+      {
+        "question": "Does localhost curl prove the internal load balancer client path?",
+        "choices": [
+          "Yes",
+          "No, test the VIP from a separate allowed client"
+        ],
+        "answer": 1,
+        "explanation": "The backend listener and client-to-VIP path are different checks."
+      },
+      {
+        "question": "What does an IMDS token followed by a Storage 403 suggest?",
+        "choices": [
+          "The VM is necessarily off",
+          "Inspect data authorization and network policy independently"
+        ],
+        "answer": 1,
+        "explanation": "Authentication can succeed while data access or network restrictions deny the request."
+      }
+    ],
+    "encouragement": {
+      "beforeLab": "You do not need a perfect first deployment. Work through the validation checks and let each result guide the next step.",
+      "afterValidation": "Finish with a clear incident story and verified cleanup. Knowing the limits of your build is part of knowing the build."
+    }
+  }
 ]

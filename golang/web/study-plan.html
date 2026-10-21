@@ -1,0 +1,149 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Three-week AWS-first study plan | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><section class="lesson-hero"><p class="eyebrow">OPTIONAL ACCELERATED STUDY PLAN</p><h1>Three weeks. Evidence before memorisation.</h1></section><article class="prose"><h2>Your three-week sprint</h2>
+<p>Use this optional accelerated plan to turn the two tracks into a consistent study routine. Spend <strong>11 hours per week, 33 hours total</strong>, starting with AWS and then practicing Azure. The plan assumes familiarity with Linux, networking and Git; no certification or specific interview date is required. Allow extra time for unfamiliar prerequisites. Three weeks builds a practical foundation and an evidence portfolio, rather than mastery of both clouds. Lab durations include reading, quiz and first-run practice; retries, quota delays or certificate issuance can exceed estimates. Keep an asynchronous setup window before paid capstones.</p>
+<p>Before week 1: obtain sandbox accounts, cost alerts, tools and permissions. Request the regional ACM certificate/DNS access early. If access is delayed, do static validation and mark cloud evidence as pending; use the protected catch-up blocks below.</p>
+<h2>Week 1 — AWS foundations through delivery (11 hours)</h2>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th>Time</th>
+<th>Work and evidence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Monday</td>
+<td>100 min</td>
+<td><a href="./lessons/aws-01.html">AWS 01 networking</a>: routes, SG/NACL matrix, controlled route failure and cleanup</td>
+</tr>
+<tr>
+<td>Tuesday</td>
+<td>85 min</td>
+<td><a href="./lessons/aws-02.html">AWS 02 identity</a>: trust versus permissions, allow/deny evidence</td>
+</tr>
+<tr>
+<td>Wednesday</td>
+<td>95 min</td>
+<td><a href="./lessons/aws-03.html">AWS 03 compute</a>: static health/rollout review now; reserve runtime drill for week 2</td>
+</tr>
+<tr>
+<td>Thursday</td>
+<td>95 min</td>
+<td><a href="./lessons/aws-04.html">AWS 04 data</a>: S3 version restore and DR design; DB runtime observations later</td>
+</tr>
+<tr>
+<td>Friday</td>
+<td>100 min</td>
+<td><a href="./lessons/aws-05.html">AWS 05 Terraform</a>: module/backend review and state security; live drift later</td>
+</tr>
+<tr>
+<td>Saturday</td>
+<td>85 min</td>
+<td><a href="./lessons/aws-06.html">AWS 06 CI/CD</a>: narrow OIDC trust and plan-only job in separate repo</td>
+</tr>
+<tr>
+<td>Sunday</td>
+<td>100 min</td>
+<td>40 min cost/quotas/certificate prep, 30 min explain the architecture aloud, 30 min catch-up</td>
+</tr>
+</tbody></table>
+<p>Exit gate: draw the AWS request, credential and state paths without notes; show S3 restore, IAM decisions and safe plan handling. A static-only compute exercise is not yet failure-recovery evidence.</p>
+<h2>Week 2 — Build AWS evidence, then map Azure (11 hours)</h2>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th>Time</th>
+<th>Work and evidence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Monday</td>
+<td>80 min</td>
+<td><a href="./lessons/aws-07.html">AWS 07 capstone</a>, first half: inspect inputs, cost and plan; explicit learner apply decision</td>
+</tr>
+<tr>
+<td>Tuesday</td>
+<td>80 min</td>
+<td>AWS capstone second half: HTTPS, WordPress post/upload and two healthy AZ targets</td>
+</tr>
+<tr>
+<td>Wednesday</td>
+<td>110 min</td>
+<td>Complete AWS 03 live target failure and AWS 05 tag-drift detection/reconcile; record timeline</td>
+</tr>
+<tr>
+<td>Thursday</td>
+<td>110 min</td>
+<td>AWS 04 recovery runbook, RPO/RTO assumptions, cost review; destroy capstone and verify inventory</td>
+</tr>
+<tr>
+<td>Friday</td>
+<td>70 min</td>
+<td><a href="./lessons/azure-01.html">Azure 01 identity</a>: tenant/subscription/RBAC scope map</td>
+</tr>
+<tr>
+<td>Saturday</td>
+<td>160 min</td>
+<td><a href="./lessons/azure-02.html">Azure 02 networking</a> 85 min + <a href="./lessons/azure-03.html">Azure 03 compute</a> 75 min; runtime parts in week 3</td>
+</tr>
+<tr>
+<td>Sunday</td>
+<td>50 min</td>
+<td>30 min AWS senior mock interview, 20 min catch-up</td>
+</tr>
+</tbody></table>
+<p>Exit gate: show AWS runtime evidence and cleanup, explain tested recovery versus proposed DR, compare Azure identity/network boundaries accurately. Never keep paid resources running until the next weekly session by accident.</p>
+<h2>Week 3 — Azure operation and interview synthesis (11 hours)</h2>
+<table>
+<thead>
+<tr>
+<th>Session</th>
+<th>Time</th>
+<th>Work and evidence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Monday</td>
+<td>85 min</td>
+<td><a href="./lessons/azure-04.html">Azure 04 services</a>: identity/storage/Monitor walkthrough; defer live evidence to capstone</td>
+</tr>
+<tr>
+<td>Tuesday</td>
+<td>80 min</td>
+<td><a href="./lessons/azure-05.html">Azure 05 Terraform</a>: provider/backend separation and lease runbook</td>
+</tr>
+<tr>
+<td>Wednesday</td>
+<td>75 min</td>
+<td><a href="./lessons/azure-06.html">Azure 06 delivery</a>: GitHub and Azure DevOps trust/plan-only review</td>
+</tr>
+<tr>
+<td>Thursday</td>
+<td>65 min</td>
+<td><a href="./lessons/azure-07.html">Azure 07 capstone</a>, build/validate and explicit budgeted apply</td>
+</tr>
+<tr>
+<td>Friday</td>
+<td>65 min</td>
+<td>Azure capstone: probe→VIP, storage identity, failure/recovery; destroy and verify</td>
+</tr>
+<tr>
+<td>Saturday</td>
+<td>150 min</td>
+<td>60 min finish Azure 02/03/04 live evidence and drift within one bounded lab window if needed; 60 min AWS/Azure incident mock; 30 min evidence cleanup</td>
+</tr>
+<tr>
+<td>Sunday</td>
+<td>140 min</td>
+<td>40 min design interview, 40 min weakest-topic repair, 30 min CV/project narrative, 30 min catch-up</td>
+</tr>
+</tbody></table>
+<p>Exit gate: distinguish DNS, process and RBAC failures; show scoped federation designs for both CI systems; explain availability and cost choices. The Key Vault extension and full VMSS/Application Gateway deployment can become follow-on work; do not claim those were deployed if you completed only design exercises.</p>
+<h2>Score yourself with evidence</h2>
+<p>For each module: pass the quiz, reproduce validation, explain one failure and its minimal repair, answer two interview questions without reading, and verify cleanup. Keep a redacted evidence folder outside Git: diagrams, sanitized plan summaries, request statuses, incident timestamps and a cost estimate. Never save secret values, state or plan binaries into interview slides.</p>
+<p>Mock rubric (0–2 each): requirements, packet path, identity boundary, data recovery, rollout, incident diagnosis, cost and honest limitations. Below 12/16: use catch-up time on weak areas rather than add new services. Repeat a ten-minute failure diagnosis until you can defend each inference with evidence.</p>
+<h2>After the sprint</h2>
+<p>Continue at 10–12 hours/week: deepen Azure VMSS/Application Gateway and Key Vault, run a separately budgeted restore rehearsal, add centralized telemetry and apply the same interview rubric. Prioritize gaps found in actual interview feedback. Service names and certification definitions cannot substitute for operating evidence.</p>
+<h2>Arabic takeaway</h2>
+<p>الخطة 11 ساعة أسبوعيًا لمدة 3 أسابيع: AWS الأول مع مشروع ودليل تشغيل، وبعده Azure ومقارنة وتشخيص. فرّق بين اللي نفذته فعلًا واللي صممته بس، وما تسيبش موارد مدفوعة شغالة بين الجلسات.</p>
+</article></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

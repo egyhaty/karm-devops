@@ -1,0 +1,7 @@
+# Activate only after bootstrapping a separate private/versioned/encrypted bucket.
+terraform {
+  backend "s3" {
+    encrypt      = true
+    use_lockfile = true
+  }
+}

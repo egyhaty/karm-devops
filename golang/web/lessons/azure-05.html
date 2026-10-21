@@ -1,0 +1,77 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Azure Terraform: provider identity and Blob remote state | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/azure.html">Microsoft Azure Cloud &amp; DevOps</a> / Module 5</div><section class="lesson-hero"><p class="eyebrow">Intermediate practical / 80 MIN INCLUDING PRACTICE</p><h1>Azure Terraform: provider identity and Blob remote state</h1><p>Separate provider and backend authentication, use Entra-authorized state, and recover safely from drift and orphaned Blob leases.</p><p class="prerequisites"><b>Before you start:</b> Azure 01–04; Terraform 1.10+; separate sandbox state Storage Account/container.</p><a href="/content-source/azure-05.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Configure AzureRM with an explicit subscription, use Entra/OIDC for Blob state, explain lease locking and compare a backend authorization failure with a provider management failure.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Terraform 1.10+, Azure CLI and a dedicated subscription are required for live plans. Bootstrap a separate state RG/Storage Account/container with your administrator. The workload must not own its own backend lifecycle. The backend needs Storage Blob Data Contributor on the state container/account and working storage network connectivity; Azure resource Contributor alone is insufficient for Entra data access.</p>
+<h2 id="section-3">The problem</h2>
+<p>Terraform&#39;s AzureRM provider manages Azure resources. The AzureRM backend reads/writes state blobs and leases them for locking. They are separate clients with separate authentication and network requirements. A private backend can be secure yet unreachable from a GitHub-hosted runner. Solve runner placement/private connectivity rather than temporarily opening all storage networks every deployment.</p>
+<p>Use explicit Entra authentication, not an account key committed to <code>backend.tf</code>. The state blob may contain sensitive resource attributes, so enforce scoped data roles, encryption, versioning/soft-delete retention and restricted artifacts. A Blob lease prevents concurrent state writers; CI concurrency helps but does not replace the lease. <code>force-unlock</code> requires proof that the recorded operation is no longer active.</p>
+<h2 id="section-4">In this repository</h2>
+<p><code>labs/azure-app/versions.tf</code> pins a compatible provider major range and sets <code>subscription_id</code> explicitly. <code>backend.azurerm.tf.example</code> is inactive by default, keeping validation separate from backend use. The application Storage Account is private and ephemeral; it is <strong>not</strong> the state account. Existing production Terraform remains untouched.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Keep the backend and provider paths separate in your notes. Two clear diagrams are better than one confusing error.</p></div><h2 id="section-5">Lab</h2>
+<p>Start credential-free schema validation and provider inspection:</p>
+<pre><code class="language-bash">cd golang/content/labs/azure-app
+terraform init -backend=false
+terraform fmt -check
+terraform validate
+terraform providers
+</code></pre>
+<p>Have an authorized operator bootstrap the independent backend, enable blob versioning and soft delete, and assign your state identity the required data role. Select an allowed runner network. Copy the example and supply only non-secret identifiers:</p>
+<pre><code class="language-bash">cp backend.azurerm.tf.example backend.tf
+terraform init -migrate-state \
+  -backend-config=&quot;storage_account_name=$LAB_STATE_ACCOUNT&quot; \
+  -backend-config=&quot;container_name=tfstate&quot; \
+  -backend-config=&quot;key=cloud-learning/azure-app.tfstate&quot;
+</code></pre>
+<p>The example uses <code>use_azuread_auth = true</code>. For local Azure CLI authentication ensure the logged-in tenant/subscription are correct. For CI use <code>use_oidc = true</code> and the documented workload identity environment variables, rather than setting a client secret. If your backend resolves through a private endpoint, validate DNS and 443 connectivity from the actual runner before blaming the token.</p>
+<p>After a learner-deployed Azure 07 stack, change a harmless RG tag through the console. Run <code>terraform plan -refresh-only -detailed-exitcode</code> and distinguish 0 (no change), 2 (successful difference) and 1 (failure). Compare with a normal plan. Decide whether to restore the declared tag or intentionally update configuration, then verify a no-change normal plan.</p>
+<p>Module-design exercise: separate VNet/private DNS into a reusable module with outputs for app subnet and endpoint subnet IDs. Keep state backend bootstrap and role-assignment administration outside that module. Use <code>moved</code> blocks for a refactor, inspect resource addresses and ensure the plan does not replace the VM/NIC merely because an address changed. The capstone remains a readable root module for first-time Azure diagnosis; this refactor is an assessed extension.</p>
+<h2 id="section-6">Validation</h2>
+<p>Confirm state is stored under the intended unique key and a lease is held during an operation. Verify blob versioning/retention on the <strong>backend</strong> account. Show a plan using the correct provider subscription and evidence that the workload RG does not contain its state account. For static-only learners, label backend/lease checks as unexecuted.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>A reviewed no-change plan is useful evidence too. Predictability is part of operating infrastructure well.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Evidence</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Backend 403, provider works</td>
+<td>Data role and auth mode on state blob</td>
+<td>Grant correct data role, not broader subscription Owner</td>
+</tr>
+<tr>
+<td>Provider subscription error</td>
+<td>Explicit subscription/tenant and identity scope</td>
+<td>Fix provider settings separately</td>
+</tr>
+<tr>
+<td>Backend timeout</td>
+<td>Runner DNS, storage firewall/private path</td>
+<td>Restore connectivity</td>
+</tr>
+<tr>
+<td>Lease held after CI crash</td>
+<td>Lease/lock ID and active operation inventory</td>
+<td>Unlock only confirmed orphan; preserve state version</td>
+</tr>
+</tbody></table>
+<p>Do not run two independent states against the same resources. Moving state between backends requires a reviewed migration and secure backup, not copying only the Terraform source. <code>terraform init -reconfigure</code> ignores a previous backend configuration; it is not equivalent to migrating existing state.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Remove temporary plans and working caches. Destroy the workload before retiring the backend. Keep the independent backend&#39;s retained versions until the recovery policy permits deletion, then have its owner remove the dedicated state resources. Never delete a live state blob just to clear a lock.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Why does Azure Contributor still get backend 403?</strong> Blob state uses a data plane, and Entra data authorization requires the appropriate role at its scope. Also check network policy and identity before granting anything.</p>
+<p><strong>How do self-hosted runners help private state?</strong> They can reach private DNS/endpoints from an approved VNet. That solves a network requirement, while identity, runner isolation and state permissions still need separate controls.</p>
+<p><strong>How do you handle an orphaned lease?</strong> Verify the owner/run has ended, record the lock metadata, preserve a state recovery point and use the documented unlock flow. Never break an active writer&#39;s lock to speed up a deployment.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Draw provider API traffic and backend Blob traffic as separate lines with separate roles. Explain the difference between migrate-state and reconfigure, and demonstrate a harmless drift review without automatically applying it.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ provider والـ backend اتنين clients مختلفين؛ نجاح واحد مش دليل إن التاني شغال. الـ state على Blob محتاج data role وlease locking ومسار شبكة صحيح، ويفضل يكون عمره مستقل عن موارد التطبيق.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://developer.hashicorp.com/terraform/language/backend/azurerm">AzureRM backend</a></li>
+<li><a href="https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/azure_cli">Terraform Azure authentication</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/developer/terraform/store-state-in-azure-storage">Terraform state on Azure Storage</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="0" data-explanation="The AzureRM backend uses native Blob locking/consistency capabilities."><fieldset><legend>1. Which component locks Azure Blob state?</legend><label><input type="radio" name="question-0" value="0" required> The backend using a Blob lease</label><label><input type="radio" name="question-0" value="1" required> The VM NSG</label><label><input type="radio" name="question-0" value="2" required> Only GitHub concurrency</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Independent backend lifecycle preserves the state and recovery boundary."><fieldset><legend>2. Should the workload destroy also delete its own backend?</legend><label><input type="radio" name="question-1" value="0" required> Yes</label><label><input type="radio" name="question-1" value="1" required> No, keep backend bootstrap/lifecycle separate</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="azure-05"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="azure-04.html">← Previous module</a><a href="/tracks/azure.html">Track overview</a><a href="azure-06.html">Next: Azure delivery: federated GitHub Actions and Azure Pipelines →</a></nav><section class="related"><h2>Continue exploring</h2><a href="azure-01.html">Azure operating model: subscriptions, Entra ID and RBAC ↗</a><a href="azure-02.html">Azure networking: NSGs, routes, private endpoints and DNS ↗</a><a href="azure-03.html">Azure compute: VMs, scale sets and load-balancing choices ↗</a><a href="azure-04.html">Azure services: Storage, Key Vault, identities and Monitor ↗</a><a href="azure-06.html">Azure delivery: federated GitHub Actions and Azure Pipelines ↗</a><a href="azure-07.html">Azure capstone: build and diagnose a private application ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

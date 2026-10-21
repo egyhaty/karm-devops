@@ -1,0 +1,7 @@
+subscription_id      = "REPLACE_WITH_SANDBOX_SUBSCRIPTION"
+location             = "westeurope"
+name                 = "cloud-learning-azure"
+storage_account_name = "REPLACE_WITH_GLOBALLY_UNIQUE_LOWERCASE_NAME"
+ssh_public_key_path  = "~/.ssh/id_ed25519.pub"
+vm_size              = "Standard_B2s"
+enable_probe         = false

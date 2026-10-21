@@ -1,0 +1,12 @@
+[
+  {
+    "id": "aws",
+    "title": "AWS Cloud & DevOps",
+    "summary": "Build practical AWS skills in networking, identity, resilient services and Terraform delivery. Finish with a highly available WordPress platform."
+  },
+  {
+    "id": "azure",
+    "title": "Microsoft Azure Cloud & DevOps",
+    "summary": "Build an Azure operating model from subscriptions and identity through private networking, Terraform and federated delivery. Finish by diagnosing a private application stack."
+  }
+]

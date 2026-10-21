@@ -1,0 +1,104 @@
+#!/bin/bash
+set -euo pipefail
+# Do not enable shell tracing: bootstrap consumes a managed DB secret.
+dnf install -y httpd php php-mysqlnd php-fpm amazon-efs-utils python3 tar
+systemctl enable --now php-fpm
+mkdir -p /var/www/html
+printf '%s:/ /var/www/html efs _netdev,tls 0 0\n' '${efs_id}' >> /etc/fstab
+for attempt in $(seq 1 30); do
+  mount /var/www/html && break
+  sleep 10
+done
+mountpoint -q /var/www/html
+# Keep DB credentials local, never in shared user data, stdout or Terraform state.
+cat > /usr/local/sbin/cloud-lab-refresh-db <<'SCRIPT'
+#!/usr/bin/python3
+import base64, json, os, subprocess, tempfile
+secret = json.loads(subprocess.check_output([
+    'aws','secretsmanager','get-secret-value','--region','${region}',
+    '--secret-id','${secret_arn}','--query','SecretString','--output','text'
+]))
+secret['host'] = '${db_host}'
+payload = base64.b64encode(json.dumps(secret).encode()).decode()
+fd, temporary = tempfile.mkstemp(dir='/etc', prefix='.wordpress-db-')
+with os.fdopen(fd, 'w') as out:
+    out.write("<?php return json_decode(base64_decode('" + payload + "'), true);\n")
+import pwd, grp
+os.chown(temporary, 0, grp.getgrnam('apache').gr_gid)
+os.chmod(temporary, 0o640)
+os.replace(temporary, '/etc/wordpress-db.php')
+SCRIPT
+chmod 700 /usr/local/sbin/cloud-lab-refresh-db
+for attempt in $(seq 1 30); do
+  /usr/local/sbin/cloud-lab-refresh-db && break
+  sleep 10
+done
+test -s /etc/wordpress-db.php
+# NFSv4 advisory lock serializes initial shared extraction/configuration.
+(
+  flock -x 9
+  if [ ! -f /var/www/html/index.php ]; then
+    curl --fail --location --retry 3 'https://wordpress.org/wordpress-${wordpress_version}.tar.gz' -o /tmp/wordpress.tar.gz
+    printf '%s  /tmp/wordpress.tar.gz\n' '${wordpress_sha256}' | sha256sum -c -
+    tar --extract --gzip --file /tmp/wordpress.tar.gz --strip-components=1 --directory /var/www/html
+    rm -f /tmp/wordpress.tar.gz
+  fi
+  if [ ! -f /var/www/html/wp-salts.php ]; then
+    php -r 'echo "<?php\n"; foreach (["AUTH_KEY","SECURE_AUTH_KEY","LOGGED_IN_KEY","NONCE_KEY","AUTH_SALT","SECURE_AUTH_SALT","LOGGED_IN_SALT","NONCE_SALT"] as $key) { echo "define(\x27".$key."\x27, \x27".bin2hex(random_bytes(48))."\x27);\n"; }' > /var/www/html/wp-salts.php
+  fi
+  cat > /var/www/html/wp-config.php <<'PHP'
+<?php
+$lab_db = require '/etc/wordpress-db.php';
+define('DB_NAME', 'wordpress');
+define('DB_USER', $lab_db['username']);
+define('DB_PASSWORD', $lab_db['password']);
+define('DB_HOST', $lab_db['host']);
+define('DB_CHARSET', 'utf8mb4');
+define('DB_COLLATE', '');
+define('MYSQL_CLIENT_FLAGS', MYSQLI_CLIENT_SSL);
+require __DIR__ . '/wp-salts.php';
+define('WP_HOME', 'https://${site_hostname}');
+define('WP_SITEURL', 'https://${site_hostname}');
+define('FORCE_SSL_ADMIN', true);
+define('DISALLOW_FILE_EDIT', true);
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    $_SERVER['HTTPS'] = 'on';
+}
+$table_prefix = 'wp_';
+if (!defined('ABSPATH')) { define('ABSPATH', __DIR__ . '/'); }
+require_once ABSPATH . 'wp-settings.php';
+PHP
+  cat > /var/www/html/healthz.php <<'PHP'
+<?php
+if (!is_readable(__DIR__ . '/index.php') || !is_readable('/etc/wordpress-db.php')) {
+    http_response_code(503); exit('not ready');
+}
+header('Content-Type: text/plain'); echo "ok\n";
+PHP
+  cat > /var/www/html/readyz.php <<'PHP'
+<?php
+header('Content-Type: text/plain');
+mysqli_report(MYSQLI_REPORT_OFF);
+$db = require '/etc/wordpress-db.php';
+$link = mysqli_init();
+mysqli_options($link, MYSQLI_OPT_CONNECT_TIMEOUT, 3);
+if (!@mysqli_real_connect($link, $db['host'], $db['username'], $db['password'], 'wordpress', 3306, null, MYSQLI_CLIENT_SSL)) {
+    http_response_code(503); exit('database unavailable');
+}
+if (!mysqli_query($link, 'SELECT 1')) { http_response_code(503); exit('query failed'); }
+echo "ready\n";
+PHP
+  chown -R apache:apache /var/www/html
+  chmod 640 /var/www/html/wp-config.php /var/www/html/wp-salts.php
+) 9>/var/www/html/.cloud-lab-init.lock
+cat > /etc/httpd/conf.d/wordpress.conf <<'CONF'
+DirectoryIndex index.php index.html
+<Directory /var/www/html>
+    AllowOverride All
+    Require all granted
+</Directory>
+<FilesMatch "^(wp-config|wp-salts)\.php$">
+    Require all denied
+</FilesMatch>
+CONF
+systemctl enable --now httpd

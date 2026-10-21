@@ -1,0 +1,77 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AWS delivery: GitHub OIDC and reviewed Terraform plans | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/aws.html">AWS Cloud &amp; DevOps</a> / Module 6</div><section class="lesson-hero"><p class="eyebrow">Advanced practical / 85 MIN INCLUDING PRACTICE</p><h1>AWS delivery: GitHub OIDC and reviewed Terraform plans</h1><p>Replace static CI keys with scoped federation and design a reviewed deployment boundary that untrusted pull requests cannot cross.</p><p class="prerequisites"><b>Before you start:</b> AWS 02 and 05; a separate sandbox GitHub repository; permission to create a scoped federated role.</p><a href="/content-source/aws-06.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Write OIDC audience/subject conditions, distinguish an unprivileged PR job from a privileged environment job and defend the integrity of a reviewed Terraform plan. Explain why an identity-token permission alone is not deployment authorization.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Use a new lab repository, not this repository&#39;s active deployment workflows. A sandbox administrator must create/import the GitHub OIDC provider and role. Choose a read/plan-only role initially; provider reads and backend writes for locking need distinct scoped permissions. A later apply role needs resource-specific creation/deletion and constrained PassRole permissions. Never use account-wide AdministratorAccess as the sample&#39;s default.</p>
+<h2 id="section-3">The problem</h2>
+<p>A long-lived access key in repository secrets can be exfiltrated and reused elsewhere. GitHub OIDC exchanges a short-lived job identity for an STS session. The AWS role trust must verify the token audience and a narrow subject. A branch subject differs from an environment subject; if a job uses environment <code>cloud-lab</code>, trust that environment subject and protect its branches/reviewers in GitHub. Environment names alone do not enforce human approval.</p>
+<p>An authenticated pipeline can still execute malicious Terraform. Providers, modules and external data programs are executable code. Do not run an untrusted fork PR with a deploy role, a writable state backend, or <code>pull_request_target</code> checkout of attacker code. Keep ordinary PR formatting/tests credential-free; run privileged plan only on reviewed refs, then require approval for apply.</p>
+<h2 id="section-4">In this repository</h2>
+<p><code>golang/content/labs/pipelines/aws-plan.yml.example</code> is an inert example copied manually into a separate sandbox repo. It is outside <code>.github/workflows/</code> here, so adding this course cannot trigger a cloud deploy. The current application build/GitOps workflows stay unchanged.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Follow the identity exchange step by step. A narrow trust rule is easier to defend than a convenient wildcard.</p></div><h2 id="section-5">Lab</h2>
+<p>Write the trust condition using your own account and a separate repository. This is a policy fragment for a role whose federated principal is the account&#39;s GitHub provider:</p>
+<pre><code class="language-json">{
+  &quot;Effect&quot;: &quot;Allow&quot;,
+  &quot;Principal&quot;: {&quot;Federated&quot;: &quot;arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com&quot;},
+  &quot;Action&quot;: &quot;sts:AssumeRoleWithWebIdentity&quot;,
+  &quot;Condition&quot;: {
+    &quot;StringEquals&quot;: {
+      &quot;token.actions.githubusercontent.com:aud&quot;: &quot;sts.amazonaws.com&quot;,
+      &quot;token.actions.githubusercontent.com:sub&quot;: &quot;repo:OWNER/SANDBOX_REPO:environment:cloud-lab&quot;
+    }
+  }
+}
+</code></pre>
+<p>Replace all placeholders. Configure the GitHub environment&#39;s allowed deployment branch and required reviewers before granting the role. If your GitHub plan cannot enforce the intended reviewer feature, use a manual controlled alternative and record the limitation rather than claim protection exists.</p>
+<p>Copy and read the example, pin action references to audited commit SHAs before using it for privileged jobs, then set repository variables for the sandbox region/state bucket and environment role ARN. The job requests <code>id-token: write</code> and <code>contents: read</code>, calls <code>configure-aws-credentials</code>, prints only <code>get-caller-identity</code>, initializes the backend and produces a plan. No <code>apply</code> step is included.</p>
+<p>Validation exercise: run the plan job in the permitted environment, then intentionally change the role trust&#39;s subject to a different sandbox environment. Re-run and confirm federation is denied before Terraform can access AWS. Restore the exact condition. Do not display the OIDC token or STS credentials in logs. Capture only job identity, STS ARN and sanitized error code.</p>
+<p>Design an apply workflow on paper: it must bind the approved commit, Terraform/provider lockfiles, state key, exact saved plan checksum, approval decision and apply identity. A second fresh plan is not the reviewed saved plan. Prefer short-lived restricted plan artifacts or regenerate/review close to deployment if secure artifact handling is unavailable.</p>
+<h2 id="section-6">Validation</h2>
+<p>Pass criteria: no AWS access keys in GitHub secrets; exact <code>aud</code> and <code>sub</code> matching; disallowed environment fails; allowed job shows the expected assumed role; PR checks cannot assume it; no cloud apply step executes. A plan-only job still needs network access and read permissions and may expose data through plan output, so do not publish sensitive logs.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>A pipeline refusing the wrong identity is doing its job. Keep that failed test alongside the successful run.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cannot get OIDC token</td>
+<td>Job permissions and context</td>
+<td>Enable id-token only for intended job</td>
+</tr>
+<tr>
+<td>STS rejects token</td>
+<td>Provider URL/audience/subject and environment use</td>
+<td>Match exact claims; don&#39;t wildcard the organization</td>
+</tr>
+<tr>
+<td>STS works, Terraform fails</td>
+<td>Service permissions, backend, PassRole constraints</td>
+<td>Separate trust success from resource authorization</td>
+</tr>
+<tr>
+<td>Approval bypass</td>
+<td>Actual environment protections and branch rules</td>
+<td>Configure protections outside YAML</td>
+</tr>
+</tbody></table>
+<p>Use job-level concurrency keyed by environment/state to reduce conflicting writers, while retaining backend locks as the authoritative state protection. Keep cloud sessions short and use meaningful session names for audit correlation.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Disable/remove the lab workflow in the sandbox repo. Remove role policies and the lab role once no job uses it. Delete an OIDC provider only if you created it solely for this lab and have verified no other roles reference it. Preserve the real repository&#39;s federation and workflows.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Why is <code>repo:ORG/*</code> too broad?</strong> A compromised unrelated repository can gain the same identity route. Scope the exact repository and protected environment/ref, then constrain role permissions and session lifetime.</p>
+<p><strong>Can fork PRs run Terraform safely?</strong> Credential-free fmt/validate with controlled dependencies is different from a privileged plan. Never grant unreviewed code deployment credentials just because the event is called a PR.</p>
+<p><strong>How do you audit a deployment?</strong> Correlate commit SHA, approved plan digest, environment decision, workflow run and CloudTrail STS session. A green build without provenance does not answer who changed what.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Explain branch versus environment subjects and demonstrate a deliberate trust failure in the sandbox. Present a sequence diagram from GitHub job token to STS session to backend/resource authorization. Label the example as plan-only.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ OIDC بيلغي المفاتيح الثابتة لكنه محتاج trust ضيقة ومراجعة للكود. افصل PR checks عن jobs اللي معاها صلاحيات، واحمِ environment فعلًا. نجاح STS مش معناه إن permissions أو الموافقة على النشر صح.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws">GitHub OIDC in AWS</a></li>
+<li><a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html">AWS GitHub federation role</a></li>
+<li><a href="https://github.com/aws-actions/configure-aws-credentials">Configure AWS credentials action</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="Environment jobs carry an environment subject; protection rules must also be configured."><fieldset><legend>1. A job uses a GitHub environment. Which subject must trust match?</legend><label><input type="radio" name="question-0" value="0" required> Only its branch name</label><label><input type="radio" name="question-0" value="1" required> Its environment subject</label><label><input type="radio" name="question-0" value="2" required> Any repository in the organization</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Untrusted Terraform/provider code must not run with deployment credentials."><fieldset><legend>2. What should an untrusted PR receive?</legend><label><input type="radio" name="question-1" value="0" required> A production apply role</label><label><input type="radio" name="question-1" value="1" required> Credential-free checks, not privileged Terraform execution</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="aws-06"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="aws-05.html">← Previous module</a><a href="/tracks/aws.html">Track overview</a><a href="aws-07.html">Next: AWS capstone: a secure, highly available WordPress service →</a></nav><section class="related"><h2>Continue exploring</h2><a href="aws-01.html">AWS networking: trace the packet, prove the route ↗</a><a href="aws-02.html">AWS identity: roles, STS and secret boundaries ↗</a><a href="aws-03.html">AWS compute: ALB health, launch templates and recovery ↗</a><a href="aws-04.html">AWS data: RDS, S3, recovery and cost tradeoffs ↗</a><a href="aws-05.html">AWS Terraform: modules, state, drift and lifecycle ↗</a><a href="aws-07.html">AWS capstone: a secure, highly available WordPress service ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

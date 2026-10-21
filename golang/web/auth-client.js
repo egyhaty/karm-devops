@@ -30,7 +30,7 @@
     .then((user) => {
       resetActions();
       if (!user) {
-        host.append(link('Create account or sign in', '/auth/login'));
+        host.append(link('Sign in / Register', '/auth/login'));
         window.dispatchEvent(new CustomEvent('learning-auth-state', { detail: { signedIn: false } }));
         return;
       }

@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-var lessonIDPattern = regexp.MustCompile(`^lesson-(0[1-9]|1[0-3])$`)
+var lessonIDPattern = regexp.MustCompile(`^(lesson-(0[1-9]|1[0-3])|docker|git|network-policy|(aws|azure)-0[1-7])$`)
 
 type progressItem struct {
 	LessonID  string    `json:"lessonId"`

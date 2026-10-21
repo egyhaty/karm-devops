@@ -33,3 +33,6 @@ schemas/
 .env
 .env.*
 !.env.example
+
+# Python lab/test bytecode
+__pycache__/
