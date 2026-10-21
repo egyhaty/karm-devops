@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'golang/**'
+      - 'scripts/check-learning-content.sh'
       - 'nodejs/**'
       - '.github/workflows/automate-build-apps.yml'
   workflow_dispatch:
@@ -199,7 +200,7 @@ jobs:
             docker logs golang-smoke
             exit 1
           fi
-          curl -fsS http://127.0.0.1:8080/ | grep -q 'Project Learning Lab'
+          bash scripts/check-learning-content.sh http://127.0.0.1:8080
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/me)" = 401
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/metrics)" = 404
           for attempt in {1..30}; do
