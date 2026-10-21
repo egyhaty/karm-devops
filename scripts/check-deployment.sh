@@ -24,10 +24,9 @@ check_health() {
 }
 
 check_learning_lab() {
-  local base="$1" issuer="$1/auth/realms/learning-lab/.well-known/openid-configuration" metadata page api_status metrics_status master_auth_status master_login_action_status master_account_status attempt
+  local base="$1" issuer="$1/auth/realms/learning-lab/.well-known/openid-configuration" metadata api_status metrics_status master_auth_status master_login_action_status master_account_status attempt
   check_health "Learning Lab" "$base"
   for attempt in {1..15}; do
-    page="$(curl --fail --silent --max-time 10 "$base/" 2>/dev/null || true)"
     api_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/api/me" 2>/dev/null || true)"
     metrics_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' "$base/metrics" 2>/dev/null || true)"
     master_auth_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' \
@@ -38,7 +37,7 @@ check_learning_lab() {
     master_account_status="$(curl --silent --max-time 10 -o /dev/null -w '%{http_code}' \
       "$base/auth/realms/master/account" 2>/dev/null || true)"
     metadata="$(curl --fail --silent --max-time 10 "$issuer" 2>/dev/null || true)"
-    if grep -q 'Project Learning Lab' <<<"$page" && grep -q 'Reference library' <<<"$page" && [[ "$api_status" == 401 && "$metrics_status" == 404 ]] &&
+    if bash "$(dirname -- "${BASH_SOURCE[0]}")/check-learning-content.sh" "$base" >/dev/null 2>&1 && [[ "$api_status" == 401 && "$metrics_status" == 404 ]] &&
       [[ "$master_auth_status" == 200 || "$master_auth_status" == 302 ]] &&
       [[ "$master_login_action_status" != 404 && "$master_login_action_status" != 503 && "$master_login_action_status" != 000 ]] &&
       [[ "$master_account_status" == 200 || "$master_account_status" == 302 ]] &&
