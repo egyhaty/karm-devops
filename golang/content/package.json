@@ -2,6 +2,6 @@
   "name": "learning-content",
   "private": true,
   "type": "module",
-  "scripts": { "build": "node build.mjs", "test": "node --test build.test.mjs" },
+  "scripts": { "build": "node build.mjs", "test": "node --test *.test.mjs" },
   "devDependencies": { "marked": "17.0.5" }
 }

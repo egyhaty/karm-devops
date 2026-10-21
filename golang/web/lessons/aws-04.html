@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AWS data: RDS, S3, recovery and cost tradeoffs | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/aws.html">AWS Cloud &amp; DevOps</a> / Module 4</div><section class="lesson-hero"><p class="eyebrow">Advanced practical / 95 MIN INCLUDING PRACTICE</p><h1>AWS data: RDS, S3, recovery and cost tradeoffs</h1><p>Distinguish availability from recovery, test versioned object restoration, and design measurable RPO/RTO for WordPress.</p><p class="prerequisites"><b>Before you start:</b> AWS 01–03; AWS CLI; optional capstone RDS and a learner-owned S3 test bucket.</p><a href="/content-source/aws-04.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Explain RDS Multi-AZ failover, backups and point-in-time restore (PITR) as separate mechanisms. Recover a versioned S3 object, define a WordPress consistency boundary across database and uploads, and defend an architecture&#39;s recurring cost.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Use a disposable account and AWS CLI v2. S3 storage and API calls may incur small charges; RDS, snapshots, replication and failover drills incur additional charges. No commands in this lesson should target an organizational backup bucket. Use a unique lab bucket and the same explicit region as earlier modules.</p>
+<h2 id="section-3">The problem</h2>
+<p>Multi-AZ reduces a failure domain; it does not undo a malicious DELETE or a broken schema migration. A standard RDS Multi-AZ DB instance has a synchronous standby for availability, not a read-scaling endpoint. Read replicas serve a different purpose and can lag. A snapshot is a point in time; PITR uses retained backups/logs to restore a new DB instance within a supported window. Restoring creates a new endpoint and demands application cutover, credential checks and validation.</p>
+<p>WordPress has two state stores: MySQL for posts/settings and the uploads filesystem. Restoring one without the other may leave broken media references. EFS sharing solves cross-instance visibility, not backup consistency. Choose an RPO (acceptable data loss interval) and RTO (acceptable service restoration time), coordinate a maintenance/write freeze where necessary, and measure end-to-end restore rather than only resource creation.</p>
+<p>S3 versioning retains old versions and delete markers; it is not immutable backup by itself. An authorized attacker who can delete versions can still destroy data. Object Lock and separate-account copies address stronger threats but introduce retention and operational constraints. Encryption does not replace access control or deletion protection.</p>
+<h2 id="section-4">In this repository</h2>
+<p>The AWS capstone uses RDS Multi-AZ with seven-day automated backup retention and encrypted EFS. Its short-lived lab destroy skips a final snapshot deliberately; a real deployment must change that lifecycle decision. <code>terraform/</code> and the live PostgreSQL database are outside this exercise. Do not restore or snapshot the production learning application.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Recovery is a skill you can practise. Begin with one harmless object and prove that the original bytes come back.</p></div><h2 id="section-5">Lab</h2>
+<p>Create a versioned bucket containing only a harmless local text file. Use the bucket&#39;s versioned API to prove recovery rather than assume it:</p>
+<pre><code class="language-bash">export AWS_PROFILE=cloud-lab AWS_REGION=eu-west-1
+BUCKET=&quot;cloud-learning-$(aws sts get-caller-identity --query Account --output text)-$(date +%s)&quot;
+aws s3api create-bucket --bucket &quot;$BUCKET&quot; --region &quot;$AWS_REGION&quot; --create-bucket-configuration LocationConstraint=&quot;$AWS_REGION&quot;
+aws s3api put-public-access-block --bucket &quot;$BUCKET&quot; --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3api put-bucket-versioning --bucket &quot;$BUCKET&quot; --versioning-configuration Status=Enabled
+printf &#39;revision one\n&#39; &gt; /tmp/cloud-learning-object.txt
+VERSION_ONE=$(aws s3api put-object --bucket &quot;$BUCKET&quot; --key evidence.txt --body /tmp/cloud-learning-object.txt --query VersionId --output text)
+printf &#39;bad revision\n&#39; &gt; /tmp/cloud-learning-object.txt
+aws s3api put-object --bucket &quot;$BUCKET&quot; --key evidence.txt --body /tmp/cloud-learning-object.txt --query VersionId
+aws s3api get-object --bucket &quot;$BUCKET&quot; --key evidence.txt --version-id &quot;$VERSION_ONE&quot; /tmp/cloud-learning-restored.txt
+cmp /tmp/cloud-learning-restored.txt &lt;(printf &#39;revision one\n&#39;)
+</code></pre>
+<p>The <code>LocationConstraint</code> example excludes us-east-1, which uses a different create-bucket request. Use the documented region-specific form rather than rerun blindly. For future buckets, explicitly configure default encryption and a TLS-only bucket policy as additional review tasks.</p>
+<p>For a deployed capstone, inspect recovery capability without retrieving any password:</p>
+<pre><code class="language-bash">DB_ID=$(terraform -chdir=golang/content/labs/aws-wordpress output -raw db_identifier)
+aws rds describe-db-instances --db-instance-identifier &quot;$DB_ID&quot; --query &#39;DBInstances[0].{MultiAZ:MultiAZ,Public:PubliclyAccessible,Encrypted:StorageEncrypted,Retention:BackupRetentionPeriod,LatestRestorable:LatestRestorableTime}&#39;
+aws rds describe-db-snapshots --db-instance-identifier &quot;$DB_ID&quot; --query &#39;DBSnapshots[].{ID:DBSnapshotIdentifier,Status:Status,Time:SnapshotCreateTime}&#39;
+</code></pre>
+<p>Design a separately budgeted restore rehearsal: choose a time before a lab-only bad write; use <code>restore-db-instance-to-point-in-time</code> with a new target identifier, private subnet group and correct SGs. Wait for readiness, configure secret access, compare expected posts and media checksums, then rehearse DNS/config cutover. Do not execute a restore until you have budgeted the additional DB and chosen a target ID; include its deletion in the cleanup inventory. A successful API call without restored application data is not a passed DR test.</p>
+<h2 id="section-6">Validation</h2>
+<p><code>cmp</code> must exit zero for the restored object. Inventory all object versions and document how a delete marker differs from removing a version. Record RDS&#39;s latest-restorable time and compare it to the stated RPO, allowing for backup/log delay. For DR interview evidence, keep a timed runbook: detect, decide, restore DB and files, validate, cut over, observe. Static review alone cannot substantiate a measured RTO.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>A tested restore is worth keeping in your notes. Be clear about what you recovered and what still needs a rehearsal.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+<th>Consequence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>S3 object &#39;disappeared&#39;</td>
+<td>Versions and delete markers</td>
+<td>Restore a retained version instead of recreating blindly</td>
+</tr>
+<tr>
+<td>RDS failover causes app errors</td>
+<td>DNS caching, connection retries, transaction retry semantics</td>
+<td>Existing connections must reconnect</td>
+</tr>
+<tr>
+<td>Restore is complete, app empty</td>
+<td>Database name, restored timestamp, new endpoint</td>
+<td>Infrastructure status is not data validation</td>
+</tr>
+<tr>
+<td>Unexpected bill after destroy</td>
+<td>Snapshots, EIPs, NAT, endpoints, old object versions</td>
+<td>Inventory residual resources, not just EC2</td>
+</tr>
+</tbody></table>
+<p>Cost review: list ALB hours/LCUs, two NAT hours/data, two EC2 instances/EBS, Multi-AZ RDS/storage/backups, EFS storage, public IPv4, CloudWatch and transfer. Prices, quotas and region availability change. Compare two-AZ requirements to a temporary single-AZ learning alternative explicitly; never market the HA capstone as free-tier.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Delete <strong>every version and delete marker</strong> in this dedicated bucket before deleting it. <code>aws s3 rm --recursive</code> alone does not remove old versions. This sample uses one delete request, sufficient for this two-version lab; production inventories need pagination/batching.</p>
+<pre><code class="language-bash">aws s3api list-object-versions --bucket &quot;$BUCKET&quot; --output json | jq &#39;{Objects:([.Versions[]?,.DeleteMarkers[]?] | map({Key,VersionId})),Quiet:true}&#39; &gt; /tmp/cloud-learning-delete.json
+aws s3api delete-objects --bucket &quot;$BUCKET&quot; --delete file:///tmp/cloud-learning-delete.json
+aws s3api delete-bucket --bucket &quot;$BUCKET&quot;
+rm -f /tmp/cloud-learning-object.txt /tmp/cloud-learning-restored.txt /tmp/cloud-learning-delete.json
+</code></pre>
+<p>Delete any extra restored DB and manual snapshot only after confirming they are lab-owned and no recovery evidence depends on them. Use the capstone destroy for Terraform-owned resources.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Multi-AZ versus backup?</strong> Multi-AZ addresses infrastructure availability. Backups and PITR address recovery from historical data loss. A logical corruption can reach the standby immediately; retain and test recoverable history.</p>
+<p><strong>What does a credible RTO include?</strong> Decision and provisioning time, data validation, application/secret reconfiguration, DNS cutover and user-facing checks. Reporting only snapshot restore time understates recovery.</p>
+<p><strong>How would you cut costs safely?</strong> Measure usage, rightsize and schedule disposable labs, investigate NAT/endpoints and transfer, choose retention intentionally, then consider commitment discounts for stable usage. Keep the availability/SLO tradeoff visible.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Recover the first object byte-for-byte and prove the bucket is removed. Explain a two-store WordPress restore and defend a cost estimate with a dated calculator export rather than memorized prices.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ Multi-AZ بيحسن التوافر لكنه مش backup. جرّب restore حقيقي للداتا والملفات وقيس RPO وRTO. راقب NAT والـ snapshots ونسخ S3 القديمة؛ حذف الـ instances مش معناه إن كل التكلفة وقفت.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.html">RDS Multi-AZ</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_PIT.html">RDS PITR</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html">S3 object versions</a></li>
+<li><a href="https://calculator.aws/">AWS Pricing Calculator</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="Availability replicas do not preserve independent historical application state."><fieldset><legend>1. What protects against an application deleting valid rows?</legend><label><input type="radio" name="question-0" value="0" required> Multi-AZ alone</label><label><input type="radio" name="question-0" value="1" required> Tested backups/PITR with a cutover runbook</label><label><input type="radio" name="question-0" value="2" required> More app replicas alone</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Old versions and delete markers must also be considered."><fieldset><legend>2. Does deleting current objects empty a versioned bucket completely?</legend><label><input type="radio" name="question-1" value="0" required> Yes</label><label><input type="radio" name="question-1" value="1" required> No, retained versions and markers remain</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="aws-04"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="aws-03.html">← Previous module</a><a href="/tracks/aws.html">Track overview</a><a href="aws-05.html">Next: AWS Terraform: modules, state, drift and lifecycle →</a></nav><section class="related"><h2>Continue exploring</h2><a href="aws-01.html">AWS networking: trace the packet, prove the route ↗</a><a href="aws-02.html">AWS identity: roles, STS and secret boundaries ↗</a><a href="aws-03.html">AWS compute: ALB health, launch templates and recovery ↗</a><a href="aws-05.html">AWS Terraform: modules, state, drift and lifecycle ↗</a><a href="aws-06.html">AWS delivery: GitHub OIDC and reviewed Terraform plans ↗</a><a href="aws-07.html">AWS capstone: a secure, highly available WordPress service ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

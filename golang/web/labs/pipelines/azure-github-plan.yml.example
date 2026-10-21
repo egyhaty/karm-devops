@@ -1,0 +1,51 @@
+# INERT EXAMPLE. Separate sandbox repo; pin audited action SHAs before privileged use.
+name: Azure sandbox reviewed plan
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: azure-cloud-lab-state
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    environment: azure-lab
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_USE_OIDC: 'true'
+      ARM_USE_AZUREAD: 'true'
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_storage_account_name: ${{ vars.LAB_STORAGE_ACCOUNT }}
+      TF_VAR_ssh_public_key_path: /tmp/cloud-lab.pub
+      TF_IN_AUTOMATION: 'true'
+    defaults:
+      run:
+        working-directory: golang/content/labs/azure-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Supply public key only
+        env:
+          PUBLIC_KEY: ${{ vars.LAB_SSH_PUBLIC_KEY }}
+        run: printf '%s\n' "$PUBLIC_KEY" > /tmp/cloud-lab.pub
+      - run: az account show --query '{subscription:id,tenant:tenantId}'
+      - name: Initialize independent state backend
+        env:
+          STATE_ACCOUNT: ${{ vars.LAB_STATE_ACCOUNT }}
+        run: |
+          cp backend.azurerm.tf.example backend.tf
+          terraform init -input=false -backend-config="storage_account_name=$STATE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="key=cloud-learning/azure-app.tfstate" -backend-config="use_oidc=true"
+      - run: terraform validate
+      - run: terraform plan -input=false -no-color

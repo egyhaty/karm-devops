@@ -1,0 +1,91 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Azure services: Storage, Key Vault, identities and Monitor | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/azure.html">Microsoft Azure Cloud &amp; DevOps</a> / Module 4</div><section class="lesson-hero"><p class="eyebrow">Intermediate practical / 85 MIN INCLUDING PRACTICE</p><h1>Azure services: Storage, Key Vault, identities and Monitor</h1><p>Trace VM managed identity to private Blob access, distinguish Key Vault network and role failures, and collect useful operating signals.</p><p class="prerequisites"><b>Before you start:</b> Azure 01–03; optional deployed Azure capstone; data-role assignment rights for extensions.</p><a href="/content-source/azure-04.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Use a VM managed identity without stored credentials, separate Blob/Key Vault data roles from management access, and explain metric, log and activity-log evidence. Design secret retrieval and rotation without embedding secret values in Terraform.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>The practical runtime lab uses the Azure 07 VM and Storage Account. Azure CLI is required on your laptop; inside the VM the included Python app uses the metadata endpoint and standard library. Key Vault is a separately budgeted extension and is not silently created. Creating role assignments requires an appropriately privileged bootstrap identity.</p>
+<h2 id="section-3">The problem</h2>
+<p>A system-assigned managed identity belongs to the lifecycle of its Azure resource; a user-assigned identity has an independent lifecycle and can be attached to multiple resources. Managed identity supplies an Entra token for a requested audience. It does not automatically grant authorization, network reachability or access to a secret.</p>
+<p>Storage Blob Data Reader is a data-plane role. Key Vault Secrets User permits reading secret contents under the RBAC model; Key Vault Reader is metadata-oriented and is not equivalent. Choose one vault permission model deliberately and keep RBAC distinct from firewall/private endpoint rules. A 403 can reflect authorization or network restrictions; inspect the actual service error and the request&#39;s identity and route.</p>
+<p>Azure Monitor is a family of facilities. Platform metrics, Activity Log (control-plane actions), resource diagnostic logs, VM guest logs and application telemetry are different data streams. A VM&#39;s stdout is not automatically in Log Analytics. Diagnostic settings, data collection rules/agents, retention and queries must be configured and costed deliberately.</p>
+<h2 id="section-4">In this repository</h2>
+<p>The capstone disables shared keys and public Storage network access. It assigns the VM identity Storage Blob Data Reader on the account. The app&#39;s <code>/storage-check</code> requests an IMDS token for the Storage audience and lists the lab container; it never returns the token. No secret values or access keys are provisioned into Terraform state. The example&#39;s in-memory greeting is not a database-backed HA application.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Take the token, role and network checks separately. You do not have to solve every layer at once.</p></div><h2 id="section-5">Lab</h2>
+<p>After deploying Azure 07 yourself, inspect identity and exact role assignment:</p>
+<pre><code class="language-bash">cd golang/content/labs/azure-app
+RG=$(terraform output -raw resource_group_name)
+VM=$(terraform output -raw vm_name)
+SA=$(terraform output -raw storage_account_name)
+PRINCIPAL=$(az vm show -g &quot;$RG&quot; -n &quot;$VM&quot; --query identity.principalId -o tsv)
+STORAGE_SCOPE=$(az storage account show -g &quot;$RG&quot; -n &quot;$SA&quot; --query id -o tsv)
+az role assignment list --assignee &quot;$PRINCIPAL&quot; --scope &quot;$STORAGE_SCOPE&quot; --query &#39;[].{role:roleDefinitionName,scope:scope}&#39; -o table
+az vm run-command invoke -g &quot;$RG&quot; -n &quot;$VM&quot; --command-id RunShellScript --scripts &#39;curl -fsS http://127.0.0.1:8080/storage-check&#39; --query &#39;value[].message&#39; -o tsv
+</code></pre>
+<p>Expected response: a small JSON result with a successful storage HTTP status, without a bearer token or blob body. Allow for role propagation. The storage container is created through the provider&#39;s management path, so the learner&#39;s public laptop does not need direct private blob access for provisioning.</p>
+<p>Use the platform metric API to examine available VM metrics and a recent Activity Log window:</p>
+<pre><code class="language-bash">VM_ID=$(az vm show -g &quot;$RG&quot; -n &quot;$VM&quot; --query id -o tsv)
+az monitor metrics list-definitions --resource &quot;$VM_ID&quot; --query &#39;[].name.value&#39; -o tsv
+az monitor metrics list --resource &quot;$VM_ID&quot; --metric &#39;Percentage CPU&#39; --interval PT1M --aggregation Average
+az monitor activity-log list --resource-group &quot;$RG&quot; --offset 1h --query &#39;[].{time:eventTimestamp,status:status.value,operation:operationName.value}&#39; -o table
+</code></pre>
+<p>Key Vault extension: have an authorized lab operator create an RBAC-enabled vault with an approved network policy, create a disposable non-production secret, grant the VM identity Key Vault Secrets User at an intended scope and access it from the VM using a token for <code>https://vault.azure.net</code>. Validate only the version ID/HTTP status in shared evidence. Rotate the secret, verify retrieval of the new version and explain app caching/reload behavior. Record vault, role assignment and private endpoint/DNS IDs for cleanup. This extension requires its own commands/configuration review against current tenant policy; no production vault is used.</p>
+<h3>Optional private Key Vault lab</h3>
+<p>A complete inert <a href="../labs/azure-app/key-vault.tf.example">key-vault.tf.example</a> creates an RBAC vault with public networking disabled, a private endpoint/DNS link and a VM data-role assignment. It does not put a secret value in Terraform. Copy it to <code>key-vault.tf</code>, set a globally unique <code>vault_name</code> in private tfvars, validate and review the added cost before any apply. Follow tenant soft-delete/purge policies.</p>
+<p>For this disposable exercise only, set <code>vault_data_role = &quot;Key Vault Secrets Officer&quot;</code>, review the scoped temporary permission and apply it in your sandbox. Download <a href="../labs/azure-app/vault-check.py">vault-check.py</a> and copy it to the private VM through Run Command&#39;s script transport (no token/secret in arguments):</p>
+<pre><code class="language-bash">VAULT=$(terraform output -raw vault_name)
+# Azure CLI loads the local script as the Run Command script body.
+# Wrapper combines a local Python file into a shell script; values are lab identifiers only.
+{ printf &quot;python3 - %s --seed &lt;&lt;&#39;PYTHON&#39;\n&quot; &quot;$VAULT&quot;; cat vault-check.py; printf &#39;\nPYTHON\n&#39;; } &gt; /tmp/cloud-vault-seed.sh
+az vm run-command invoke -g &quot;$RG&quot; -n &quot;$VM&quot; --command-id RunShellScript --scripts @/tmp/cloud-vault-seed.sh --query &#39;value[].message&#39; -o tsv
+</code></pre>
+<p>The script requests the Vault audience from IMDS and writes only a fixed harmless test string, then prints its version ID without a value/token. Change <code>vault_data_role</code> back to <strong>Key Vault Secrets User</strong>, review/apply, wait for verified role propagation, and run a read-only wrapper by omitting <code>--seed</code>. Read should succeed and <code>--seed</code> should eventually be denied under the read role. Role/managed-identity caches can take longer than a few minutes; capture observations without claiming immediate revocation. Never use a real secret as an argument or in this script.</p>
+<p>To rehearse rotation, temporarily re-enable the explicitly scoped seed role, write a new disposable version, restore the read role and verify the version ID changes. Remove wrapper files afterward. Keep activated <code>.tf</code> files present during the capstone&#39;s full destroy so private endpoints, DNS and role ownership remain clear; only remove them after reviewed cleanup. Soft-deleted/purge-protected vaults follow tenant retention policy.</p>
+<h2 id="section-6">Validation</h2>
+<p>Show the principal object ID/role scope with identifiers redacted. <code>/storage-check</code> should succeed from the VM and public anonymous blob access should fail. Prove a missing data role yields a different incident from a missing DNS link. Keep one metric query and one Activity Log event, explaining which logs are <strong>not</strong> collected by this lab.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>Keep one successful check and one useful failure. Together they show that you understand the access boundary.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First evidence</th>
+<th>Correction</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>No IMDS token</td>
+<td>Identity attachment, audience, metadata header, no proxy</td>
+<td>Fix token acquisition; don&#39;t store a fallback account key</td>
+</tr>
+<tr>
+<td>Storage 403 with correct DNS</td>
+<td>Role assignment/principal and propagation</td>
+<td>Grant narrow data role or wait after verified assignment</td>
+</tr>
+<tr>
+<td>Key Vault metadata visible, secret denied</td>
+<td>Exact data role and permission model</td>
+<td>Use Secrets User where appropriate</td>
+</tr>
+<tr>
+<td>Log query empty</td>
+<td>Diagnostic setting/agent, workspace, time range</td>
+<td>Configure ingestion; absence is not proof of no incident</td>
+</tr>
+</tbody></table>
+<p>Use a service error code and timestamps rather than only a screenshot saying &#39;Forbidden&#39;. Avoid logging HTTP Authorization headers or dumping metadata token responses.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Delete any optional Key Vault role assignment and disposable vault following the organization&#39;s soft-delete/purge-protection policy. Soft-deleted vaults may reserve names; purge protection cannot simply be bypassed for convenience. The capstone&#39;s identity and role are Terraform-owned and removed by its destroy. Keep diagnostic retention/cost settings in the cleanup inventory.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Managed identity versus a stored service-principal secret?</strong> Managed identity avoids distributing/rotating a client secret for supported Azure resources. It still needs authorization, correct token audience and working network paths.</p>
+<p><strong>Why Contributor and Key Vault Secrets User separately?</strong> One concerns management operations and one data access under RBAC. Broad management rights can still alter access boundaries, so separation of duties and restricted role-assignment permissions matter.</p>
+<p><strong>What evidence do you need during a storage incident?</strong> Request/error code, principal, role/scope, token audience, DNS/private endpoint state and recent control-plane changes. CPU charts alone cannot identify authorization failures.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Draw the managed-identity token request and subsequent Storage request. Explain the difference between a token, a role assignment and a private endpoint. Show one successful private data access and one intentionally failed boundary test.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ managed identity بتجيب token من غير مفتاح ثابت، لكنها محتاجة RBAC وداتا role وnetwork صح. فرّق بين Activity Log والـ metrics ولوجات التطبيق؛ اللوجات مش هتتجمع تلقائيًا من غير إعداد ingestion.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview">Managed identities overview</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide">Key Vault RBAC</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/authorize-access-azure-active-directory">Blob authorization with Entra ID</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/overview">Azure Monitor overview</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="Authentication, authorization and connectivity are distinct."><fieldset><legend>1. Does a managed identity token itself grant Blob access?</legend><label><input type="radio" name="question-0" value="0" required> Yes</label><label><input type="radio" name="question-0" value="1" required> No; the data role and network path must also permit it</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="0" data-explanation="Activity Log records control-plane operations; guest logs need an ingestion path."><fieldset><legend>2. Which signal records Azure control-plane changes?</legend><label><input type="radio" name="question-1" value="0" required> Activity Log</label><label><input type="radio" name="question-1" value="1" required> Unconfigured guest stdout</label><label><input type="radio" name="question-1" value="2" required> A token audience</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="azure-04"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="azure-03.html">← Previous module</a><a href="/tracks/azure.html">Track overview</a><a href="azure-05.html">Next: Azure Terraform: provider identity and Blob remote state →</a></nav><section class="related"><h2>Continue exploring</h2><a href="azure-01.html">Azure operating model: subscriptions, Entra ID and RBAC ↗</a><a href="azure-02.html">Azure networking: NSGs, routes, private endpoints and DNS ↗</a><a href="azure-03.html">Azure compute: VMs, scale sets and load-balancing choices ↗</a><a href="azure-05.html">Azure Terraform: provider identity and Blob remote state ↗</a><a href="azure-06.html">Azure delivery: federated GitHub Actions and Azure Pipelines ↗</a><a href="azure-07.html">Azure capstone: build and diagnose a private application ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

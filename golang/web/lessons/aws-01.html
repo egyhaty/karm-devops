@@ -1,0 +1,92 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AWS networking: trace the packet, prove the route | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/aws.html">AWS Cloud &amp; DevOps</a> / Module 1</div><section class="lesson-hero"><p class="eyebrow">Advanced practical / 100 MIN INCLUDING PRACTICE</p><h1>AWS networking: trace the packet, prove the route</h1><p>Build a private network boundary, explain NAT versus IGW, and diagnose SG, NACL and return-path failures.</p><p class="prerequisites"><b>Before you start:</b> Linux routing and DNS; AWS CLI v2; a disposable AWS account with VPC permissions.</p><a href="/content-source/aws-01.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Trace a TCP connection across subnet routes, Internet Gateway (IGW), NAT Gateway, security groups (SGs) and network ACLs (NACLs). Distinguish a missing route from a rejected packet and a failing DNS query. Produce a route/port matrix suitable for an interview whiteboard.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>You already know Linux routing and Kubernetes Services. Use AWS CLI v2, jq and a dedicated sandbox account. Set a spending alert before any paid extension; an AWS Budget alerts you but is not a hard spending cap. These commands create VPC control-plane objects only, without EC2 or NAT. Read the current regional price sheet before launching the capstone. Never use this repository&#39;s production credentials.</p>
+<h2 id="section-3">The problem</h2>
+<p>A private instance cannot install packages. Adding <code>0.0.0.0/0</code> to its SG does not supply a route, a NAT device, or working DNS. A public subnet means its route table points an internet default route at an IGW; it does not mean every instance has a public address. IPv4 internet access through an IGW also needs a public IPv4 association on the instance. A public NAT Gateway needs an Elastic IP and an IGW path in its public subnet; private workloads route to it and do not become internet-addressable.</p>
+<p>An SG is stateful and attached to an ENI: allowed connection responses are tracked. A NACL is stateless, applies at the subnet boundary, and evaluates numbered rules in ascending order until a match. Allow the request destination port and the return ephemeral ports in the appropriate directions. NAT Gateways do not have SGs. Neither a NAT route nor a broad allow rule grants IAM access to S3.</p>
+<p>For high availability, place public ingress, private app and isolated database subnets in two AZs. One NAT per AZ avoids a single egress dependency and cross-AZ routing for that design; a single NAT is a deliberate lower-cost lab compromise, not AZ-resilient egress. Gateway endpoints can keep S3/DynamoDB traffic off NAT; interface endpoints add private ENIs, DNS and per-hour/data charges.</p>
+<h2 id="section-4">In this repository</h2>
+<p>Use <code>golang/content/labs/aws-wordpress/modules/network/</code> to compare a reproducible two-AZ topology to this small CLI experiment. <code>terraform/</code> at the repository root is the existing platform; do not run cloud learning commands there. Downloadable examples live under <code>../labs/aws-wordpress/README.md</code>.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Trace one connection at a time. Once the packet path makes sense, the service names become easier to remember.</p></div><h2 id="section-5">Lab</h2>
+<p>Start a fresh shell. Choose a permitted region explicitly and record the caller account before creating anything:</p>
+<pre><code class="language-bash">export AWS_PROFILE=cloud-lab
+export AWS_REGION=eu-west-1
+aws sts get-caller-identity --query &#39;{Account:Account,Arn:Arn}&#39;
+VPC_ID=$(aws ec2 create-vpc --cidr-block 10.42.0.0/16 --query Vpc.VpcId --output text)
+aws ec2 create-tags --resources &quot;$VPC_ID&quot; --tags Key=Purpose,Value=cloud-learning
+aws ec2 modify-vpc-attribute --vpc-id &quot;$VPC_ID&quot; --enable-dns-support &#39;{&quot;Value&quot;:true}&#39;
+AZ=$(aws ec2 describe-availability-zones --filters Name=state,Values=available --query &#39;AvailabilityZones[0].ZoneName&#39; --output text)
+SUBNET_ID=$(aws ec2 create-subnet --vpc-id &quot;$VPC_ID&quot; --cidr-block 10.42.10.0/24 --availability-zone &quot;$AZ&quot; --query Subnet.SubnetId --output text)
+RT_ID=$(aws ec2 create-route-table --vpc-id &quot;$VPC_ID&quot; --query RouteTable.RouteTableId --output text)
+ASSOC_ID=$(aws ec2 associate-route-table --subnet-id &quot;$SUBNET_ID&quot; --route-table-id &quot;$RT_ID&quot; --query AssociationId --output text)
+IGW_ID=$(aws ec2 create-internet-gateway --query InternetGateway.InternetGatewayId --output text)
+aws ec2 attach-internet-gateway --vpc-id &quot;$VPC_ID&quot; --internet-gateway-id &quot;$IGW_ID&quot;
+aws ec2 create-route --route-table-id &quot;$RT_ID&quot; --destination-cidr-block 0.0.0.0/0 --gateway-id &quot;$IGW_ID&quot;
+aws ec2 describe-route-tables --route-table-ids &quot;$RT_ID&quot; --query &#39;RouteTables[0].Routes&#39;
+</code></pre>
+<p>Draw the route before calling the subnet public. Now deliberately remove only this sandbox default route:</p>
+<pre><code class="language-bash">aws ec2 delete-route --route-table-id &quot;$RT_ID&quot; --destination-cidr-block 0.0.0.0/0
+aws ec2 describe-route-tables --route-table-ids &quot;$RT_ID&quot; --query &#39;RouteTables[0].Routes&#39;
+aws ec2 create-route --route-table-id &quot;$RT_ID&quot; --destination-cidr-block 0.0.0.0/0 --gateway-id &quot;$IGW_ID&quot;
+aws ec2 describe-network-acls --filters Name=vpc-id,Values=&quot;$VPC_ID&quot; --query &#39;NetworkAcls[].Entries&#39;
+</code></pre>
+<p>A new VPC&#39;s default NACL allows traffic; a custom NACL starts with deny rules. Write a proposed custom NACL matrix for HTTPS client egress: outbound destination 443, inbound client ephemeral ports, plus app/database flows separately. Do not attach an untested custom NACL to a live subnet. In the capstone, enter the app through SSM, run <code>getent hosts wordpress.org</code>, <code>curl -I https://wordpress.org</code>, <code>ip route</code>, and compare the instance route with the VPC route table. The OS default gateway alone cannot reveal the VPC&#39;s NAT target.</p>
+<h2 id="section-6">Validation</h2>
+<p>The explicit table must contain the VPC-local route and the IGW default route after recovery. The subnet has no auto public IPv4 mapping and no instance: claiming successful internet connectivity here would be false. Save the caller account, route tables and a directional SG/NACL matrix, redacting account identifiers before sharing. After the capstone, test one app instance in each AZ and document whether an egress failure affects one or both.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>You have a route to follow now. Treat the next failed connection as evidence, not a reason to start over.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Evidence</th>
+<th>Next test</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>DNS lookup fails</td>
+<td>VPC DNS attributes and resolver</td>
+<td>Do not diagnose NAT before name resolution</td>
+</tr>
+<tr>
+<td>TCP timeout to a numeric IP</td>
+<td>Actual subnet association, route target, SG egress, NACL return range</td>
+<td>A route in a different table is irrelevant</td>
+</tr>
+<tr>
+<td>Private app works in only one AZ</td>
+<td>Compare private tables and NAT AZs</td>
+<td>Often an asymmetric configuration</td>
+</tr>
+<tr>
+<td>S3 returns AccessDenied</td>
+<td>Caller identity, endpoint policy, bucket/IAM policy</td>
+<td>HTTP response proves transport, not authorization</td>
+</tr>
+</tbody></table>
+<p>Use VPC Flow Logs and Reachability Analyzer for controlled paid extensions. Flow logs show accept/reject metadata, not application payload or every DNS interaction. A network path analysis does not prove an HTTP process is listening.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Use the IDs from this shell only, in dependency order:</p>
+<pre><code class="language-bash">aws ec2 disassociate-route-table --association-id &quot;$ASSOC_ID&quot;
+aws ec2 delete-subnet --subnet-id &quot;$SUBNET_ID&quot;
+aws ec2 delete-route-table --route-table-id &quot;$RT_ID&quot;
+aws ec2 detach-internet-gateway --vpc-id &quot;$VPC_ID&quot; --internet-gateway-id &quot;$IGW_ID&quot;
+aws ec2 delete-internet-gateway --internet-gateway-id &quot;$IGW_ID&quot;
+aws ec2 delete-vpc --vpc-id &quot;$VPC_ID&quot;
+</code></pre>
+<p>If interrupted, find the tagged VPC, inspect its dependencies, and recover IDs before deleting. This lab never allocates Elastic IPs or NAT Gateways; if you added them yourself, release/delete them explicitly after checking ownership.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>A private EC2 instance has an allow-all outbound SG but HTTPS times out. What next?</strong> Resolve DNS, identify its ENI and actual subnet route-table association, check the default route&#39;s NAT state, the NAT&#39;s public-subnet IGW route, then both NACL directions. Correlate flow logs. Do not fix an unproven routing failure by opening inbound SSH.</p>
+<p><strong>Why SG references instead of subnet CIDRs between ALB and app?</strong> They express identity of the participating ENIs and survive IP changes. They are not transitive and do not create routes. Use CIDRs where the traffic source cannot be represented by the intended SG relationship.</p>
+<p><strong>Would you deploy one NAT or two?</strong> Quantify required AZ availability, hourly/data/cross-AZ costs and endpoint alternatives. Explain the single-AZ egress failure domain rather than answering with a universal rule.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Without notes, draw the outbound request and return packet, including ephemeral ports. Explain why moving the same ENI rules to another subnet can change reachability. Completion evidence: route diff, restored route, cleanup confirmation and a three-minute incident explanation.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>ابدأ بتتبّع الباكت والـ route table المرتبطة فعلًا بالـ subnet. الـ SG stateful والـ NACL stateless؛ فتح البورت لوحده مش بيعمل route. الـ NAT للخروج من الشبكة الخاصة، والـ IGW جزء من مسار الإنترنت للشبكة العامة.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Route_Tables.html">VPC route tables</a></li>
+<li><a href="https://docs.aws.amazon.com/vpc/latest/userguide/infrastructure-security.html">Security groups and NACL comparison</a></li>
+<li><a href="https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-troubleshooting.html">NAT troubleshooting</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="2" data-explanation="An IGW attachment alone supplies neither a subnet route nor a public IPv4 association."><fieldset><legend>1. Which change alone makes an EC2 instance internet reachable?</legend><label><input type="radio" name="question-0" value="0" required> An IGW attached to its VPC</label><label><input type="radio" name="question-0" value="1" required> An allow-all SG</label><label><input type="radio" name="question-0" value="2" required> None: address, route and controls must all align</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="NACLs evaluate each direction independently."><fieldset><legend>2. Which rule set needs explicit return ephemeral-port rules?</legend><label><input type="radio" name="question-1" value="0" required> Security groups for tracked connections</label><label><input type="radio" name="question-1" value="1" required> Stateless NACLs</label><label><input type="radio" name="question-1" value="2" required> IAM trust policies</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="aws-01"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="/tracks/aws.html">Track overview</a><a href="aws-02.html">Next: AWS identity: roles, STS and secret boundaries →</a></nav><section class="related"><h2>Continue exploring</h2><a href="aws-02.html">AWS identity: roles, STS and secret boundaries ↗</a><a href="aws-03.html">AWS compute: ALB health, launch templates and recovery ↗</a><a href="aws-04.html">AWS data: RDS, S3, recovery and cost tradeoffs ↗</a><a href="aws-05.html">AWS Terraform: modules, state, drift and lifecycle ↗</a><a href="aws-06.html">AWS delivery: GitHub OIDC and reviewed Terraform plans ↗</a><a href="aws-07.html">AWS capstone: a secure, highly available WordPress service ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

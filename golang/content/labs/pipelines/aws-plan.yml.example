@@ -1,0 +1,47 @@
+# INERT EXAMPLE. Copy only into a separate sandbox repo after reviewing trust/permissions.
+# Pin actions to reviewed immutable SHAs before privileged use. No apply job.
+name: AWS sandbox reviewed plan
+on: workflow_dispatch
+permissions:
+  contents: read
+concurrency:
+  group: aws-cloud-lab-state
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    environment: cloud-lab # Configure branch restrictions/reviewers outside YAML.
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_VAR_region: ${{ vars.AWS_REGION }}
+      TF_VAR_certificate_arn: ${{ vars.LAB_CERTIFICATE_ARN }}
+      TF_VAR_site_hostname: ${{ vars.LAB_HOSTNAME }}
+      TF_VAR_client_cidr: ${{ vars.LAB_CLIENT_CIDR }}
+      TF_VAR_wordpress_version: ${{ vars.WORDPRESS_VERSION }}
+      TF_VAR_wordpress_sha256: ${{ vars.WORDPRESS_SHA256 }}
+    defaults:
+      run:
+        working-directory: golang/content/labs/aws-wordpress
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cloud-lab-plan
+      - run: aws sts get-caller-identity --query '{Account:Account,Arn:Arn}'
+      - name: Initialize independent state backend
+        env:
+          STATE_BUCKET: ${{ vars.LAB_STATE_BUCKET }}
+        run: |
+          cp backend.s3.tf.example backend.tf
+          terraform init -input=false -backend-config="bucket=$STATE_BUCKET" -backend-config="key=cloud-learning/wordpress/terraform.tfstate" -backend-config="region=$TF_VAR_region"
+      - run: terraform validate
+      - run: terraform plan -input=false -no-color
+      # Plan output can contain sensitive data. Restrict logs; no public plan artifact.

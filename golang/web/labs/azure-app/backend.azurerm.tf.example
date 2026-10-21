@@ -1,0 +1,7 @@
+# Activate only after separate backend provisioning and network/RBAC review.
+terraform {
+  backend "azurerm" {
+    use_azuread_auth = true
+    # CI: also supply use_oidc=true and the documented identity environment.
+  }
+}

@@ -66,7 +66,7 @@ Install Bash, [yq](https://github.com/mikefarah/yq), jq, Helm 4, kubectl, Terraf
 
 ## Documentation
 
-The learning site now has a searchable reference library alongside the introductory platform tour. Markdown sources in `golang/content/lessons/` produce standalone pages during image builds. The first references cover Docker, Git, and Cilium/NetworkPolicy, with English explanations and Arabic takeaways.
+Murabba Learn is a public hands-on Cloud & DevOps learning library, with seven-module AWS and Azure tracks, practical capstones, quizzes, searchable references and account-synced completion. English explanations include Arabic takeaways. The original Docker, Git, Cilium/NetworkPolicy references and guided Kubernetes project walkthrough remain available. Markdown sources in `golang/content/lessons/` generate standalone pages during builds. See [cloud tracks and validation](docs/cloud-learning-tracks.md) and the optional [three-week study plan](golang/content/study-plan.md).
 
 - [Architecture and delivery trace](docs/architecture.md)
 - [Operations and migration](docs/operations.md)

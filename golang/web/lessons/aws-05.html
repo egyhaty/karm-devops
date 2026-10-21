@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AWS Terraform: modules, state, drift and lifecycle | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/aws.html">AWS Cloud &amp; DevOps</a> / Module 5</div><section class="lesson-hero"><p class="eyebrow">Advanced practical / 100 MIN INCLUDING PRACTICE</p><h1>AWS Terraform: modules, state, drift and lifecycle</h1><p>Review reusable boundaries, migrate state safely, detect drift without applying, and understand destructive lifecycle changes.</p><p class="prerequisites"><b>Before you start:</b> AWS networking and IAM; Terraform 1.10+; sandbox state bucket provisioned separately.</p><a href="/content-source/aws-05.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Separate Terraform&#39;s dependency graph from cloud readiness. Design module interfaces, protect remote state and locks, interpret detailed plan exit codes and choose between reconciling configuration, import and intentional drift adoption.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Use Terraform 1.10+ for S3 native lockfiles and a sandbox role. Backend initialization downloads providers and can contact a backend; it is not an offline operation. You can run fmt and schema validation without provisioning resources. The backend bucket must be bootstrapped outside the workload state so destroying a workload cannot destroy its own state storage.</p>
+<h2 id="section-3">The problem</h2>
+<p>State maps Terraform addresses to remote resources and can contain sensitive attributes. A private Git repository is not a state backend. Encryption at rest, restricted IAM, versioning, locking and recovery procedures all matter. Workspaces separate state namespaces but do not alone separate AWS accounts or IAM roles. Provider credentials and backend credentials are resolved separately.</p>
+<p>The capstone extracts its network into a module with explicit VPC/subnet outputs. It leaves application resources visible in the root for review. A module should encapsulate a cohesive lifecycle, not wrap every resource in a one-line abstraction. Changing a subnet CIDR, resource address or immutable property can replace resources; inspect the plan&#39;s replacement paths. Use <code>moved</code> blocks to refactor addresses with continuity and import blocks for intentionally adopted existing resources.</p>
+<h2 id="section-4">In this repository</h2>
+<p>Only work in <code>golang/content/labs/aws-wordpress/</code>. Read <code>modules/network/main.tf</code> and its variables/outputs. Root <code>terraform/</code> is a different infrastructure lifecycle and must not receive these providers, backend settings or cloud state. <code>backend.s3.tf.example</code> is deliberately inactive until copied by the learner.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Slow down at the plan. Understanding one proposed change is progress, even when the right decision is not to apply it.</p></div><h2 id="section-5">Lab</h2>
+<p>Start with the local state backend and schema checks:</p>
+<pre><code class="language-bash">cd golang/content/labs/aws-wordpress
+terraform fmt -check -recursive
+terraform init -backend=false
+terraform validate
+terraform providers
+</code></pre>
+<p>For remote state, have your sandbox administrator create a dedicated private, encrypted, versioned S3 bucket and grant scoped state-object access plus Get/Put/Delete for the <code>.tflock</code> object. Do not grant DeleteObject on historical state versions to ordinary apply roles. Copy the backend example and initialize with non-secret parameters:</p>
+<pre><code class="language-bash">cp backend.s3.tf.example backend.tf
+terraform init -migrate-state \
+  -backend-config=&quot;bucket=$LAB_STATE_BUCKET&quot; \
+  -backend-config=&quot;key=cloud-learning/wordpress/terraform.tfstate&quot; \
+  -backend-config=&quot;region=$AWS_REGION&quot;
+</code></pre>
+<p>The example enables <code>use_lockfile = true</code>. DynamoDB-based S3 locking is deprecated in current HashiCorp guidance. Store credentials in the AWS credential chain, never backend arguments or committed files. If migrating an existing state, back it up in a private location, verify lineage/serial and inventory resources after migration; do not create a second state independently for the same live resources.</p>
+<p>After the optional AWS 07 deploy, change only the <code>Purpose</code> tag of your lab VPC through the console. Detect the controlled drift without accepting it:</p>
+<pre><code class="language-bash">set +e
+terraform plan -refresh-only -detailed-exitcode -out=drift.tfplan
+PLAN_EXIT=$?
+set -e
+case &quot;$PLAN_EXIT&quot; in
+  0) echo &#39;No drift&#39; ;;
+  2) echo &#39;Drift found: inspect the plan&#39; ;;
+  *) echo &#39;Plan failed; this is not a clean bill of health&#39;; exit &quot;$PLAN_EXIT&quot; ;;
+esac
+terraform show drift.tfplan
+terraform plan -out=reconcile.tfplan
+</code></pre>
+<p>A refresh-only plan proposes updating state to observed reality; applying it does not restore declared configuration. A normal plan shows the actions needed to reconcile the tag. Restore via a reviewed normal apply in the sandbox or intentionally update the code; document the choice. Plan files can contain secrets, so keep them private, short-lived and out of Git/artifacts unless encrypted with restricted access.</p>
+<h2 id="section-6">Validation</h2>
+<p>Confirm a no-change normal plan after reconciliation. Test locking with two sandbox operations: a second writer should wait/fail, not overwrite concurrently. Do not force-unlock a running operation. Record the module output contract and one replacement example without applying it. Prove the backend bucket survives workload destroy and old state versions remain recoverable.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>You do not need to fix drift blindly. Classify the change, choose the owner and make the next action deliberate.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Evidence</th>
+<th>Next step</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Backend AccessDenied, provider reads work</td>
+<td>Separate role/region/key and <code>.tflock</code> permissions</td>
+<td>Repair backend scope</td>
+</tr>
+<tr>
+<td>Lock held</td>
+<td>Lock owner, operation ID, active CI run</td>
+<td>Wait or cancel cleanly; force-unlock only proven orphan</td>
+</tr>
+<tr>
+<td>Massive replacement after refactor</td>
+<td>Addresses and moved blocks</td>
+<td>Preserve identities before applying</td>
+</tr>
+<tr>
+<td>Plan exit 1 reported as drift</td>
+<td>Error diagnostics</td>
+<td>Treat as failure, not exit 2</td>
+</tr>
+</tbody></table>
+<p><code>prevent_destroy</code> is a configuration guard, not backup or an IAM deny. Removing a resource block removes that guard. <code>ignore_changes</code> can hide relevant drift; use it only for fields deliberately owned elsewhere. Avoid routine <code>-target</code>: partial graphs are an incident tool, not a deployment architecture.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Remove local plan files and any <code>.terraform</code> cache when finished. Destroy workload resources before retiring the backend. Keep the state backend/version history until the exercise&#39;s retention window is complete; only its owner should remove versions and locks after verifying no active consumers. Never delete state as a substitute for destroying cloud resources.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Why separate backend bootstrap?</strong> The workload cannot depend on a backend that must already exist to initialize. Independent lifecycle and access boundaries avoid destroying the recovery record with the workload.</p>
+<p><strong>How would you adopt a console-created resource?</strong> Describe ownership, add matching configuration, use an import block, inspect a full plan for unexpected changes and commit the declaration. Import is an ownership mapping, not automatic design discovery.</p>
+<p><strong>Why not automatically apply drift detection?</strong> It may undo an intentional emergency action or adopt an attacker change. Detect, classify and review before choosing restore versus code update.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Explain the difference between refresh-only and normal plans, capture exit codes correctly and show why a saved plan is sensitive. Completion requires a reviewed plan or clearly labelled static walkthrough, not a claim of deployment.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ state سجل ملكية وربط الموارد وممكن يحتوي أسرار. حطه في backend محمي مع versioning وlocking. اكتشاف drift مش قرار إصلاح تلقائي؛ افهم التغيير وراجع plan قبل أي apply.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://developer.hashicorp.com/terraform/language/backend/s3">S3 backend and native locking</a></li>
+<li><a href="https://developer.hashicorp.com/terraform/cli/commands/plan">Terraform plan modes</a></li>
+<li><a href="https://developer.hashicorp.com/terraform/language/modules/develop/refactoring">Refactoring with moved blocks</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="Refresh-only proposes state updates; a normal plan proposes infrastructure reconciliation."><fieldset><legend>1. What does plan -refresh-only propose?</legend><label><input type="radio" name="question-0" value="0" required> Restoring every remote object to code</label><label><input type="radio" name="question-0" value="1" required> Updating recorded state to observed reality</label><label><input type="radio" name="question-0" value="2" required> Deleting missing resources automatically</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="2" data-explanation="0 means no changes, 1 error, 2 successful with differences."><fieldset><legend>2. Which detailed-exitcode indicates a successful plan with changes?</legend><label><input type="radio" name="question-1" value="0" required> 0</label><label><input type="radio" name="question-1" value="1" required> 1</label><label><input type="radio" name="question-1" value="2" required> 2</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="aws-05"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="aws-04.html">← Previous module</a><a href="/tracks/aws.html">Track overview</a><a href="aws-06.html">Next: AWS delivery: GitHub OIDC and reviewed Terraform plans →</a></nav><section class="related"><h2>Continue exploring</h2><a href="aws-01.html">AWS networking: trace the packet, prove the route ↗</a><a href="aws-02.html">AWS identity: roles, STS and secret boundaries ↗</a><a href="aws-03.html">AWS compute: ALB health, launch templates and recovery ↗</a><a href="aws-04.html">AWS data: RDS, S3, recovery and cost tradeoffs ↗</a><a href="aws-06.html">AWS delivery: GitHub OIDC and reviewed Terraform plans ↗</a><a href="aws-07.html">AWS capstone: a secure, highly available WordPress service ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

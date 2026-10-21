@@ -35,12 +35,12 @@ func TestDecodeJSONRejectsAmbiguousOrUnexpectedInput(t *testing.T) {
 }
 
 func TestLessonIDPattern(t *testing.T) {
-	for _, id := range []string{"lesson-01", "lesson-09", "lesson-13"} {
+	for _, id := range []string{"lesson-01", "lesson-09", "lesson-13", "docker", "git", "network-policy", "aws-01", "aws-07", "azure-01", "azure-07"} {
 		if !lessonIDPattern.MatchString(id) {
 			t.Errorf("expected %q to match", id)
 		}
 	}
-	for _, id := range []string{"lesson-00", "lesson-14", "lesson-99", "lesson-1", "lesson-100", "lesson-01/other", "lesson-aa", "../lesson-01"} {
+	for _, id := range []string{"lesson-00", "lesson-14", "lesson-99", "lesson-1", "lesson-100", "lesson-01/other", "lesson-aa", "../lesson-01", "aws-00", "aws-08", "azure-99", "aws-1", "aws-01/other", "AWS-01", "azure-01\n"} {
 		if lessonIDPattern.MatchString(id) {
 			t.Errorf("expected %q not to match", id)
 		}

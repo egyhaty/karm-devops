@@ -1,0 +1,82 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AWS compute: ALB health, launch templates and recovery | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/aws.html">AWS Cloud &amp; DevOps</a> / Module 3</div><section class="lesson-hero"><p class="eyebrow">Advanced practical / 95 MIN INCLUDING PRACTICE</p><h1>AWS compute: ALB health, launch templates and recovery</h1><p>Operate EC2 behind an ALB, distinguish probe success from readiness, and diagnose Auto Scaling replacement loops.</p><p class="prerequisites"><b>Before you start:</b> AWS 01–02; Terraform CLI; optional learner-deployed capstone for runtime drills.</p><a href="/content-source/aws-03.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Connect launch-template versions to ASG replacements, trace ALB-to-target reachability and prove recovery of a two-AZ service. Choose health signals and CloudWatch alerts that reveal user impact instead of merely reporting a running process.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Read AWS 01 and 02 and inspect the capstone files before paying for compute. Static review is available without a cloud account. Runtime commands below require a learner-deployed disposable capstone from AWS 07 and its Terraform outputs. Use a short test window and preserve evidence before destroying the lab.</p>
+<h2 id="section-3">The problem</h2>
+<p>Two EC2 instances are not automatically a highly available application. They need independent AZ placement, healthy target registration, shared durable state, valid routing and enough spare capacity. Launch templates describe future instances; updating a template does not silently rebuild every existing instance. Use a controlled instance refresh and observe the rollout rather than manually patching pets.</p>
+<p>ALB operates at HTTP layer 7: it evaluates listeners, rules and target groups. Health checks use their configured port/path and accepted status range. A redirecting login page can accidentally look healthy, while a DB-dependent probe can trigger replacement storms during a transient database outage. This capstone&#39;s <code>/healthz.php</code> checks PHP and the shared filesystem; <code>/readyz.php</code> additionally queries MySQL. ALB uses the shallow health endpoint, and you monitor deep readiness separately. ASG ELB health checks replace unhealthy targets after a grace period; bootstrapping slower than that grace produces an endless replacement loop.</p>
+<h2 id="section-4">In this repository</h2>
+<p>Read <code>labs/aws-wordpress/main.tf</code> for the HTTPS listener, target SG relationship, target-group health check, launch template, two-instance ASG and CloudWatch unhealthy-host alarm. The bootstrap in <code>user-data.sh.tftpl</code> installs the web stack, mounts EFS, verifies a WordPress archive hash and retrieves the database secret at runtime. It is a transparent learning bootstrap; production should bake a patched, tested AMI and rehearse upgrades.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Make the smallest failure you can observe. A short, clear recovery timeline teaches more than a large uncontrolled outage.</p></div><h2 id="section-5">Lab</h2>
+<p>Start with a no-credentials review:</p>
+<pre><code class="language-bash">cd golang/content/labs/aws-wordpress
+terraform init -backend=false
+terraform validate
+rg &#39;health_check|health_check_grace_period|metadata_options|instance_refresh&#39; main.tf
+</code></pre>
+<p>For the optional deployed drill, set IDs from your own outputs:</p>
+<pre><code class="language-bash">TG_ARN=$(terraform output -raw target_group_arn)
+ASG_NAME=$(terraform output -raw asg_name)
+aws elbv2 describe-target-health --target-group-arn &quot;$TG_ARN&quot; --query &#39;TargetHealthDescriptions[].{Instance:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}&#39;
+aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names &quot;$ASG_NAME&quot; --query &#39;AutoScalingGroups[0].Instances[].{ID:InstanceId,AZ:AvailabilityZone,Health:HealthStatus}&#39;
+INSTANCE_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names &quot;$ASG_NAME&quot; --query &#39;AutoScalingGroups[0].Instances[0].InstanceId&#39; --output text)
+aws ssm start-session --target &quot;$INSTANCE_ID&quot;
+</code></pre>
+<p>Inside that sandbox instance inspect <code>sudo cloud-init status --long</code>, <code>sudo journalctl -u httpd --no-pager -n 40</code>, <code>findmnt /var/www/html</code>, <code>curl -i http://localhost/healthz.php</code> and <code>curl -i http://localhost/readyz.php</code>. A boot error must be diagnosed before manipulating ALB matchers. Exit the session when done.</p>
+<p>Controlled failure: in the lab only, stop Apache on one target with <code>sudo systemctl stop httpd</code>. Time the sequence: failed target checks, removal from serving traffic, ASG health change, replacement and recovery. Send HTTPS requests through the lab hostname during the event. Do not use SSH from the public internet. If you want a shorter drill without waiting for replacement, restart Apache immediately; record which recovery mechanism you actually exercised.</p>
+<p>For a release exercise, change a non-secret bootstrap marker, plan, and inspect the new launch-template version plus ASG instance-refresh settings. Apply only after reviewing the separate AWS 07 cost gate. Use <code>aws autoscaling describe-instance-refreshes --auto-scaling-group-name &quot;$ASG_NAME&quot;</code> to follow progress. Capacity headroom and warmup control availability; a plan alone cannot prove zero downtime.</p>
+<h2 id="section-6">Validation</h2>
+<p>Expect two healthy targets in distinct AZs after stabilization and HTTPS 200 for both health endpoints. Record outage duration, healthy-host count and replacement instance ID. Explain why an ALB health success is weaker than a successful WordPress database transaction. The included CloudWatch alarm enters ALARM if any target is unhealthy; it has no notification action until you connect an approved destination.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>Keep the evidence from your recovery drill. You are building an explanation you can reproduce, not just a working screenshot.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Evidence</th>
+<th>Correction</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Target timeout</td>
+<td>App listener, ALB SG→app SG, NACL</td>
+<td>Restore actual flow; don&#39;t widen all ports</td>
+</tr>
+<tr>
+<td>Target response-code mismatch</td>
+<td>Curl exact path and Host behavior</td>
+<td>Fix endpoint/matcher contract</td>
+</tr>
+<tr>
+<td>Repeated EC2 replacement</td>
+<td>Cloud-init log, ASG activity, grace period</td>
+<td>Fix bootstrap; choose realistic warmup</td>
+</tr>
+<tr>
+<td>Healthy ALB, WordPress DB error</td>
+<td>Deep probe, DB SG and credentials</td>
+<td>Repair dependency, not listener</td>
+</tr>
+<tr>
+<td>No SSM session</td>
+<td>Agent status, profile, HTTPS egress/endpoints</td>
+<td>Restore management path without public SSH</td>
+</tr>
+</tbody></table>
+<p>CloudWatch metrics and alarms are not log shipping. EC2 application logs remain local unless an agent or another shipping path is configured; preserve them before instance replacement. CPU-based scaling is a starting signal, not a substitute for testing request latency and database capacity.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Stop load generators and sessions. Revert the bootstrap marker if it was only an experiment. Use AWS 07&#39;s Terraform destroy procedure for the full stack; do not terminate individual resources behind Terraform and then abandon state. Confirm the ASG is gone so it cannot recreate instances.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>ALB 502 versus 503?</strong> A 502 often involves an invalid/closed upstream response; a 503 can mean no usable registered targets. Inspect ALB access logs, target health reason codes, application logs and timing before concluding. Neither code uniquely identifies an SG issue.</p>
+<p><strong>How do you roll out EC2 changes?</strong> Publish an immutable image/template version, plan a bounded refresh with healthy capacity, monitor user-facing and dependency signals, and abort or roll forward to a known-good version. Database migrations need a compatible separate strategy.</p>
+<p><strong>Why not replace every instance when the DB fails?</strong> Replacement cannot repair a shared database outage and can amplify load. Separate process health from deep dependency monitoring and bound recovery actions.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Explain a failed request from TLS listener to target process. Present a timeline of the controlled failure with evidence, then explain the difference between target removal, instance replacement and actual application recovery.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ ASG بيحافظ على العدد، والـ ALB بيختار targets سليمة، لكن التطبيق محتاج state مشتركة وhealth checks مناسبة. تحديث launch template لوحده مش معناه إن كل السيرفرات اتحدثت؛ راقب instance refresh وأثره على المستخدم.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html">ALB target health checks</a></li>
+<li><a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/asg-instance-refresh.html">ASG instance refresh</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html">CloudWatch alarms</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="Replacing healthy processes does not restore a shared database and can amplify disruption."><fieldset><legend>1. A DB outage makes every deep probe fail. Should EC2 replacement be the primary repair?</legend><label><input type="radio" name="question-0" value="0" required> Yes, replace all instances</label><label><input type="radio" name="question-0" value="1" required> No, isolate the shared dependency failure</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Templates define future launches. Existing instances need an explicit rollout."><fieldset><legend>2. Does a new launch-template version update all existing instances automatically?</legend><label><input type="radio" name="question-1" value="0" required> Always</label><label><input type="radio" name="question-1" value="1" required> No; use a controlled replacement/refresh strategy</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="aws-03"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="aws-02.html">← Previous module</a><a href="/tracks/aws.html">Track overview</a><a href="aws-04.html">Next: AWS data: RDS, S3, recovery and cost tradeoffs →</a></nav><section class="related"><h2>Continue exploring</h2><a href="aws-01.html">AWS networking: trace the packet, prove the route ↗</a><a href="aws-02.html">AWS identity: roles, STS and secret boundaries ↗</a><a href="aws-04.html">AWS data: RDS, S3, recovery and cost tradeoffs ↗</a><a href="aws-05.html">AWS Terraform: modules, state, drift and lifecycle ↗</a><a href="aws-06.html">AWS delivery: GitHub OIDC and reviewed Terraform plans ↗</a><a href="aws-07.html">AWS capstone: a secure, highly available WordPress service ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

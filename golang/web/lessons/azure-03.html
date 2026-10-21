@@ -1,0 +1,91 @@
+<!doctype html><html lang="en"><head><meta name="theme-color" content="#102c35"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Azure compute: VMs, scale sets and load-balancing choices | Murabba Learn</title><link rel="stylesheet" href="/reference.css?v=cloud-learning-1"><script src="/reference.js?v=cloud-learning-1" defer></script><script src="/progress-sync.js?v=cloud-learning-1" defer></script><script src="/auth-client.js?v=cloud-learning-1" defer></script></head><body><header class="reference-topbar"><a class="brand" href="/" aria-label="Murabba Learn home"><span class="brand-mark" aria-hidden="true">M</span><span><b>Murabba Learn</b><small>Cloud &amp; DevOps · Learn by doing.</small></span></a><nav class="primary-nav" aria-label="Main navigation"><a href="/">Library</a><a href="/tracks/aws.html">AWS</a><a href="/tracks/azure.html">Azure</a><a href="/study-plan.html">Study plan</a><a href="/course.html">Project walkthrough</a></nav><div class="account-actions" id="authActions"><a href="/auth/login">Sign in / Register</a></div></header><main><div class="breadcrumbs"><a href="/">Reference library</a> / <a href="/tracks/azure.html">Microsoft Azure Cloud &amp; DevOps</a> / Module 3</div><section class="lesson-hero"><p class="eyebrow">Intermediate practical / 75 MIN INCLUDING PRACTICE</p><h1>Azure compute: VMs, scale sets and load-balancing choices</h1><p>Choose L4 versus L7 ingress, inspect private VM health and explain VMSS rollout, probes and availability choices.</p><p class="prerequisites"><b>Before you start:</b> Azure 01–02; Azure CLI; optional Azure 07 capstone for private VM runtime inspection.</p><a href="/content-source/azure-03.md" download>Download the lesson source ↓</a></section><div class="reading-layout"><aside aria-label="Lesson contents"><b>IN THIS LESSON</b><a href="#section-1">Learning objectives</a><a href="#section-2">Prerequisites</a><a href="#section-3">The problem</a><a href="#section-4">In this repository</a><a href="#section-5">Lab</a><a href="#section-6">Validation</a><a href="#section-7">Troubleshooting</a><a href="#section-8">Cleanup</a><a href="#section-9">Interview preparation</a><a href="#section-10">Verify your understanding</a><a href="#section-11">Arabic takeaway</a><a href="#section-12">Sources</a><a href="/">← All lessons</a></aside><article class="prose"><h2 id="section-1">Learning objectives</h2>
+<p>Choose between Azure Load Balancer and Application Gateway, inspect a VM&#39;s application and agent health, and design a controlled VM Scale Set rollout across supported availability zones.</p>
+<h2 id="section-2">Prerequisites</h2>
+<p>Use Azure CLI and review the Azure 07 capstone first. Live compute costs money and depends on regional SKU/quota availability. This module includes a local configuration design path plus commands for an already-deployed learner-owned VM. It does not create a second compute stack just to demonstrate a command.</p>
+<h2 id="section-3">The problem</h2>
+<p>Azure Load Balancer is a layer-4 TCP/UDP service; Application Gateway is layer 7 for HTTP routing, TLS termination and optional WAF. An internal Standard Load Balancer can keep a service private. A public Application Gateway has a different cost, routing, subnet, certificate and health-probe model. Neither is a universal replacement for the other.</p>
+<p>VM Scale Sets manage a group of VM instances; orchestration mode, image version, upgrade policy, health signals and zone support affect operational behavior. A running instance is not proof of a listening application. Health probes must reach the actual listener, and application health for repairs/rolling upgrades must be deliberately configured. An autoscale rule needs measured demand and realistic limits; a CPU threshold cannot repair a slow shared datastore.</p>
+<p>Availability sets separate fault/update domains, while availability zones are distinct physical locations in supported regions. Zone redundancy requires service/SKU support, sufficient capacity and an application that tolerates partial loss. A single regional VM remains a single point of failure even if its disks are replicated.</p>
+<h2 id="section-4">In this repository</h2>
+<p>The Azure capstone intentionally uses one private Linux VM and an internal Standard Load Balancer for a bounded troubleshooting exercise. It is <strong>not</strong> an HA/VMSS implementation. You will design and validate the VMSS/Application Gateway alternative here rather than claim that the smaller capstone already implements it. The AWS capstone supplies the concrete two-AZ autoscaling exercise.</p>
+<div class="learning-checkpoint" role="note"><span>Take the next step</span><p>Start with a listener you can test. Build confidence in the private path before adding another scaling or routing layer.</p></div><h2 id="section-5">Lab</h2>
+<p>First write an ingress decision record with two rows: private TCP service through Standard Load Balancer and public HTTP hostname routing through Application Gateway. For each, record TLS location, source-IP behavior, probe source, subnet requirements, logs, cost and failure domain.</p>
+<p>For a learner-deployed Azure 07 stack, export its exact identifiers and inspect VM status:</p>
+<pre><code class="language-bash">cd golang/content/labs/azure-app
+RG=$(terraform output -raw resource_group_name)
+VM=$(terraform output -raw vm_name)
+NIC=$(terraform output -raw nic_name)
+az vm get-instance-view -g &quot;$RG&quot; -n &quot;$VM&quot; --query &#39;instanceView.statuses&#39; -o table
+az network nic show -g &quot;$RG&quot; -n &quot;$NIC&quot; --query &#39;{private:ipConfigurations[0].privateIPAddress,public:ipConfigurations[0].publicIPAddress}&#39;
+az network nic list-effective-nsg -g &quot;$RG&quot; -n &quot;$NIC&quot; -o json
+az vm run-command invoke -g &quot;$RG&quot; -n &quot;$VM&quot; --command-id RunShellScript --scripts &#39;systemctl is-active cloud-lab-app; curl -fsS http://127.0.0.1:8080/healthz&#39; --query &#39;value[].message&#39; -o tsv
+</code></pre>
+<p>No public IP should be assigned. VM Run Command requires the VM agent and working platform connectivity, and executes with elevated privileges; it is not the same path as a client request through the load balancer.</p>
+<p>Controlled failure: stop the lab service via Run Command, observe local curl failure and load-balancer backend health metrics, then restart it. Use Azure 07&#39;s probe VM test to prove the internal VIP is unavailable/recovered. VM power state should remain running throughout: this demonstrates the difference between machine health and application health.</p>
+<p>Design extension: create a Terraform proposal replacing the single NIC/VM with a VMSS spanning supported zones, an image version, load-balancer backend association, health/repair configuration and bounded rolling upgrades. Review it with <code>terraform validate</code> and a sandbox plan after checking the provider schema; do not blindly apply because a sample SKU exists in a different region. For an Application Gateway variant, reserve its dedicated subnet and define a backend health path returning 200 without login redirects.</p>
+<h3>VMSS hands-on extension</h3>
+<p>An inert, deployable configuration is provided as <a href="../labs/azure-app/vmss.tf.example">vmss.tf.example</a>. In the sandbox capstone directory, copy it to <code>vmss.tf</code>, check region/SKU zone support, then run <code>terraform validate</code> and a reviewed <code>terraform plan</code>. It adds two zonal instances to the internal LB pool and grants their managed identity Blob Data Reader. This is additional paid capacity; apply only in a separately budgeted window. The original single VM remains for comparison.</p>
+<pre><code class="language-bash">cp vmss.tf.example vmss.tf
+terraform validate
+terraform plan -out=vmss.tfplan
+# Explicit extra-cost decision before terraform apply vmss.tfplan.
+az vmss list-instances -g &quot;$RG&quot; -n lab-vmss --query &#39;[].{ID:instanceId,Zone:zones,State:provisioningState}&#39; -o table
+az vmss get-instance-view -g &quot;$RG&quot; -n lab-vmss --instance-id 0
+</code></pre>
+<p>After a reviewed image/custom-data update is applied to the VMSS model, use <code>az vmss update-instances -g &quot;$RG&quot; -n lab-vmss --instance-ids 0</code> to update one lab instance, verify probe/client results, then update the next instance. This deliberately manual rollout teaches model versus instance state. It is not an automatic rolling-upgrade policy. Record observed capacity and stop if healthy capacity drops below the chosen threshold. Pin the image version for repeatability.</p>
+<h3>Application Gateway hands-on extension</h3>
+<p><a href="../labs/azure-app/application-gateway.tf.example">application-gateway.tf.example</a> adds a dedicated subnet and a <strong>private HTTP</strong> L7 listener pointing at the internal LB. It is an intentionally visible extra hop for comparing L4/L7 health contracts, not the recommended minimal production path. The required v2 platform public IP has no public listener. In private tfvars set <code>app_client_cidrs = [&quot;10.60.10.0/24&quot;, &quot;10.60.30.0/24&quot;]</code>, copy the example to <code>application-gateway.tf</code>, validate and review the added gateway cost before applying.</p>
+<pre><code class="language-bash">az network application-gateway show-backend-health -g &quot;$RG&quot; -n lab-http-gateway -o json
+az vm run-command invoke -g &quot;$RG&quot; -n lab-probe --command-id RunShellScript --scripts &#39;curl -fsS http://10.60.30.10/healthz&#39; --query &#39;value[].message&#39; -o tsv
+</code></pre>
+<p>With the optional probe VM enabled, deliberately change only the gateway probe path to a nonexistent path in Terraform, review/apply, observe backend health and client failure, then restore <code>/healthz</code>. Add HTTPS/certificate and WAF policy as a separate design exercise; this private HTTP extension does not claim TLS/WAF protection. For cleanup, leave activated files present while reviewing/applying the capstone&#39;s full destroy, then remove them. Deleting the files first without reviewing the resulting plan can obscure the intended lifecycle.</p>
+<h2 id="section-6">Validation</h2>
+<p>Evidence includes VM running state, service stopped/running state, no public NIC IP, private probe results and recovery time. Your decision record must explain why this capstone cannot demonstrate multi-instance failover. The VMSS design must state min/max capacity and rollout failure policy rather than only a desired count.</p>
+<div class="learning-checkpoint" role="note"><span>Build on what you learned</span><p>A running VM and a ready application are different achievements. Your evidence should make the difference clear.</p></div><h2 id="section-7">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Evidence</th>
+<th>Repair</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VM running, listener unavailable</td>
+<td>systemd status and local curl</td>
+<td>Restore process/configuration</td>
+</tr>
+<tr>
+<td>Local curl works, LB fails</td>
+<td>Backend association, probe path/port, NSG AzureLoadBalancer rule</td>
+<td>Restore backend/probe reachability</td>
+</tr>
+<tr>
+<td>Application Gateway 502</td>
+<td>Backend health reason, Host/TLS settings, listener</td>
+<td>Fix contract between gateway and backend</td>
+</tr>
+<tr>
+<td>Scale-out fails</td>
+<td>Quota, SKU/zone availability and activity log</td>
+<td>Choose approved capacity or request quota</td>
+</tr>
+</tbody></table>
+<p>Do not open public SSH to debug an internal LB. Run Command/Bastion/private access are different management options with distinct cost and policy implications. An internal VIP cannot be tested directly from an unrelated public laptop.</p>
+<h2 id="section-8">Cleanup</h2>
+<p>Restart the lab app if you stopped it. Remove temporary load generators and VMSS proposal files if not retained as review evidence. Destroy the underlying capstone with its own Terraform state. Any extra scale set/gateway you independently deployed needs its own inventory and destroy plan.</p>
+<h2 id="section-9">Interview preparation</h2>
+<p><strong>Load Balancer or Application Gateway?</strong> Start from protocol and routing requirements. L4 private TCP distribution fits Load Balancer; host/path routing, HTTP TLS policy and WAF can justify Application Gateway. Explain cost and observability tradeoffs.</p>
+<p><strong>How do you prove an autoscaling setup is useful?</strong> Drive bounded load, measure latency/error/queue depth and resource saturation, observe scale-out timing and verify the datastore can handle added concurrency. Instance count alone is not success.</p>
+<p><strong>How do you roll back a bad VM image?</strong> Keep a known-good immutable version, stop/abort the rollout, restore the desired version and refresh with healthy capacity. Handle schema compatibility separately.</p>
+<h2 id="section-10">Verify your understanding</h2>
+<p>Explain running versus ready with your controlled outage. Present the VMSS extension as a design until tested, and name two ways a bad probe can trigger unnecessary repairs or hide real application failure.</p>
+<h2 id="section-11">Arabic takeaway</h2>
+<p>الـ VM شغالة مش معناها التطبيق جاهز. اختار Load Balancer للـ L4 وApplication Gateway لاحتياجات HTTP وTLS/WAF. الـ VMSS محتاج health وrollout وخطة capacity؛ اللاب الصغير هنا مش HA لوحده.</p>
+<h2 id="section-12">Sources</h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/azure/architecture/guide/technology-choices/load-balancing-overview">Load balancing options</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/virtual-machine-scale-sets/overview">VM Scale Sets</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/application-gateway/application-gateway-backend-health">Application Gateway backend health</a></li>
+</ul>
+<div class="learning-checkpoint" role="note"><span>Make it your own</span><p>Pause before the quiz. Explain one decision in your own words, then use the questions to find what deserves another look.</p></div><section class="module-quiz" aria-label="Module quiz"><h2>Quick quiz</h2><p>Check your answer for feedback. Completion is a self-assessment after you can reproduce the lab.</p><form class="reference-quiz" data-answer="1" data-explanation="Application Gateway provides L7 HTTP routing and WAF options."><fieldset><legend>1. Which service directly fits host/path-based HTTP routing and WAF?</legend><label><input type="radio" name="question-0" value="0" required> Azure Load Balancer</label><label><input type="radio" name="question-0" value="1" required> Application Gateway</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form><form class="reference-quiz" data-answer="1" data-explanation="Process readiness and independent failure domains need separate validation."><fieldset><legend>2. Does one running VM prove application high availability?</legend><label><input type="radio" name="question-1" value="0" required> Yes</label><label><input type="radio" name="question-1" value="1" required> No</label></fieldset><button type="submit">Check answer</button><p role="status" class="quiz-feedback"></p></form></section><section class="completion" data-progress-id="azure-03"><button type="button" class="button button-primary lesson-done" aria-pressed="false">Mark module complete</button><p class="progress-note" role="status">Saved in this browser. Sign in to sync across devices.</p></section><nav class="module-sequence" aria-label="Track sequence"><a href="azure-02.html">← Previous module</a><a href="/tracks/azure.html">Track overview</a><a href="azure-04.html">Next: Azure services: Storage, Key Vault, identities and Monitor →</a></nav><section class="related"><h2>Continue exploring</h2><a href="azure-01.html">Azure operating model: subscriptions, Entra ID and RBAC ↗</a><a href="azure-02.html">Azure networking: NSGs, routes, private endpoints and DNS ↗</a><a href="azure-04.html">Azure services: Storage, Key Vault, identities and Monitor ↗</a><a href="azure-05.html">Azure Terraform: provider identity and Blob remote state ↗</a><a href="azure-06.html">Azure delivery: federated GitHub Actions and Azure Pipelines ↗</a><a href="azure-07.html">Azure capstone: build and diagnose a private application ↗</a></section></article></div></main><footer>Murabba Learn · English explanations, Arabic takeaways · Practice in an isolated environment</footer></body></html>

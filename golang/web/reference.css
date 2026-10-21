@@ -98,3 +98,114 @@ a:focus-visible,button:focus-visible,input:focus-visible { outline: 3px solid va
 @media(max-width:800px) { .reference-topbar { position: static; align-items: flex-start; padding: 16px 22px; }.reference-topbar nav { gap: 12px; }main { padding: 22px; }.library-hero { grid-template-columns: 1fr; padding: 30px; }.hero-path { display: none; }.library-intro { gap: 18px; }.reference-grid { grid-template-columns: 1fr; }.reading-layout { grid-template-columns: 1fr; gap: 25px; }aside { position: static; }.section-heading { align-items: flex-start; }.roadmap { padding: 24px; } }
 @media(max-width:550px) { html { scroll-padding-top: 20px; }.reference-topbar { flex-direction: column; gap: 16px; }nav { justify-content: flex-start; }.library-hero { padding: 27px 22px; border-radius: 20px; }h1 { font-size: 36px; }h2 { font-size: 25px; }.hero-actions { gap: 16px; }.hero-lede { font-size: 14px; }.library-intro,.roadmap-grid { grid-template-columns: 1fr; }.library-intro { margin-bottom: 30px; }.section-heading { flex-direction: column; gap: 12px; }.prose p,.prose li { font-size: 14px; }footer { padding: 20px 22px; } }
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior: auto; }.reference-card { transition: none; } }
+
+.cloud-tracks { margin: 40px 0; }
+.cloud-track-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.section-heading>a { font-size: 13px; color: var(--teal); }
+select { max-width: 100%; margin: 8px 0 16px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); font: inherit; }
+.track-modules { list-style: none; padding: 0; display: grid; gap: 16px; }
+.track-modules li { border: 1px solid var(--line); border-radius: var(--radius); background: white; }
+.track-modules a { display: block; padding: 24px; text-decoration: none; }
+.track-modules b { display: block; color: var(--teal); }
+.track-modules span,.track-modules p { font-size: 13px; color: var(--muted); }
+.completion-label { font-size: 12px; color: var(--teal); margin-top: 10px; }
+.completion { border: 1px solid var(--line); padding: 22px; border-radius: var(--radius); background: var(--teal-light); margin-top: 36px; }
+.progress-note { color: var(--muted); font-size: 13px; }
+.reference-quiz { padding: 20px; margin: 16px 0; border: 1px solid var(--line); border-radius: var(--radius); background: white; }
+.reference-quiz fieldset { border: 0; padding: 0; }
+.reference-quiz legend { font-weight: 700; padding: 0; }
+.reference-quiz label { display: block; margin: 12px 0; cursor: pointer; }
+.reference-quiz button { background: var(--deep); color: white; border: 0; border-radius: 6px; padding: 10px 16px; cursor: pointer; }
+.quiz-feedback { min-height: 1.8em; }
+.module-sequence { justify-content: space-between; padding: 20px 0; }
+@media(max-width:650px) { .cloud-track-grid { grid-template-columns: 1fr; }.track-modules a { padding: 18px; } }
+
+/* One navigation hierarchy: brand, learning paths, then account actions. */
+.reference-topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 20px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 4px 20px rgba(16,44,53,.035);
+}
+.reference-topbar .brand-mark { background: linear-gradient(145deg,#123540,#21615e); }
+.reference-topbar .brand small { font-size: 10px; }
+.reference-topbar .primary-nav {
+  justify-self: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #dce9e4;
+  border-radius: 12px;
+  background: #f1f6f3;
+}
+.primary-nav a {
+  display: block;
+  padding: 8px 11px;
+  border-radius: 8px;
+  color: #48675f;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.primary-nav a:hover { background: #e1eee8; color: #123d3c; }
+.primary-nav a[aria-current=page] { background: var(--deep); color: #dcf6ec; box-shadow: 0 2px 5px rgba(16,44,53,.12); }
+.reference-topbar #authActions { justify-content: flex-end; gap: 9px; max-width: 205px; }
+.reference-topbar #authActions>a,.reference-topbar #authActions>button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid #ccded6;
+  border-radius: 9px;
+  background: #fff;
+  color: #1d5650;
+  font-size: 11px;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.reference-topbar #authActions>a:hover,.reference-topbar #authActions>button:hover { background: #edf7f2; border-color: #97bcae; }
+.reference-topbar #authActions>span { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 10px; }
+@media(max-width:1150px) {
+  .reference-topbar { grid-template-columns: minmax(0,1fr) auto; gap: 14px 20px; }
+  .reference-topbar .primary-nav { grid-column: 1/-1; grid-row: 2; justify-self: stretch; }
+  .reference-topbar #authActions { grid-column: 2; grid-row: 1; }
+  .reference-topbar .primary-nav a { padding: 8px 16px; }
+  html { scroll-padding-top: 150px; }
+  aside { top: 155px; }
+}
+@media(max-width:550px) {
+  .reference-topbar { padding: 14px 18px; gap: 12px; }
+  .reference-topbar .brand { gap: 8px; }
+  .reference-topbar .brand-mark { width: 34px; height: 34px; border-radius: 10px; font-size: 19px; }
+  .reference-topbar .brand b { font-size: 13px; }
+  .reference-topbar .brand small { max-width: 160px; font-size: 9px; }
+  .reference-topbar #authActions { max-width: 130px; }
+  .reference-topbar #authActions>a,.reference-topbar #authActions>button { padding: 7px 9px; font-size: 10px; min-height: 34px; }
+  .reference-topbar .primary-nav { justify-content: space-between; gap: 1px; }
+  .reference-topbar .primary-nav a { padding: 8px 6px; font-size: 10px; }
+  html { scroll-padding-top: 20px; }
+}
+@media(max-width:360px) {
+  .reference-topbar .brand small { display: none; }
+  .reference-topbar .primary-nav { flex-wrap: wrap; justify-content: center; }
+}
+
+.learning-checkpoint {
+  margin: 30px 0;
+  padding: 22px 24px;
+  border: 1px solid #d5e7dc;
+  border-inline-start: 4px solid #70ae97;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(110deg,#edf7f0,#f6f9f6);
+}
+.learning-checkpoint>span { display: block; margin-bottom: 6px; color: #37755e; font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.learning-checkpoint>p { margin: 0; color: #395c50; font-size: 14px; line-height: 1.8; }
+.track-modules .track-checkpoint { border: 0; background: transparent; }
+.track-checkpoint .learning-checkpoint { margin: 4px 0; }
+.library-checkpoint { margin: 36px 0 42px; }
