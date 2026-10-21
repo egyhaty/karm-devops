@@ -37,7 +37,7 @@ CI examples under `labs/pipelines/` are inert `.example` files, plan-only, and i
 
 Local verification on 21 October 2026:
 
-- 11 Node content/progress tests: generation, ordered catalog, legacy ID compatibility, required content/quizzes, links/download parity, publication allowlist, shell syntax, shared public copy, encouragement/module totals, local/account merge, CSRF header, complete/undo and visible sync failure.
+- 12 Node content/progress tests: generation, ordered catalog, legacy ID compatibility, required content/quizzes, links/download parity, publication allowlist, shell syntax, shared public copy, encouragement/module totals, local/account merge, CSRF header, complete/undo and visible sync failure, plus listener-before-authentication script order.
 - Go tests with race detection and `go vet ./...`: pass. With `TEST_DATABASE_URL` pointing at disposable local PostgreSQL, the integration test creates its own schema, applies migrations 001–003, seeds a legacy admin/progress record, applies 004 twice, verifies preservation, exercises cloud saves/undo/stale-write rejection and DB rejection of invalid IDs, then removes only its test schema.
 - Terraform 1.10.5 fmt/init (backend disabled)/validate: AWS and Azure pass against signed AWS 6.69.1 / AzureRM 4.81.0 schemas. Optional Azure VMSS, Application Gateway and Key Vault examples validate when activated in a temporary validation directory.
 - AWS mock-provider architecture test: pass. Its apply is entirely mocked, with no AWS API calls/resources. It checks private encrypted Multi-AZ RDS, two private app subnets/minimum capacity, IMDSv2 and restricted installer ingress.

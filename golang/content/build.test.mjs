@@ -107,3 +107,11 @@ test('encouragement appears at learning checkpoints without changing module coun
     assert.ok(lesson.indexOf('Take the next step')<lesson.indexOf('id="section-5"'));
   }
 });
+
+test('progress listeners load before authentication broadcasts on all learning routes', async () => {
+  const catalog=JSON.parse(await readFile(new URL('./catalog.json',import.meta.url)));
+  for (const page of ['index.html','course.html','tracks/aws.html','tracks/azure.html','study-plan.html',...catalog.map(l=>`lessons/${l.id}.html`)]) {
+    const html=await readFile(new URL(`../web/${page}`,import.meta.url),'utf8');
+    assert.ok(html.indexOf('progress-sync.js') < html.indexOf('auth-client.js'),page);
+  }
+});
