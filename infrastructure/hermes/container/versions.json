@@ -1,0 +1,8 @@
+{
+  "hermes_base_image": "nousresearch/hermes-agent@sha256:648e4daf033bf2de209435fd9dd61ee3e11103c1f7e1ab469bffbfb99acc263f",
+  "hermes_revision": "90194c64ff99933ec3b9ecfd9295b06e6c11e038",
+  "codex_version": "0.164.0",
+  "codex_npm_integrity": "sha512-TWj7UGyPRe3Pj/A3ddNAxs1te3a/W/xAd+J0LHrrFTmsSfahGMOLF/vn88D3QCIgAT3B1rm1y/Z3NYE0rx6cZQ==",
+  "verified_at": "2026-10-25",
+  "provenance": "Official Docker Hub repository, registry digest and OCI revision label; no signature verified"
+}

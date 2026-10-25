@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge and Study"
+  short_description: "Learn through practical labs and sourced notes"
+  default_prompt: "Use $karem-study to handle this task."

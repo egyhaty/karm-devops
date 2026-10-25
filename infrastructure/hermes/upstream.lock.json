@@ -1,0 +1,50 @@
+{
+  "reviewed_at": "2026-10-25",
+  "repositories": [
+    {
+      "repository": "NousResearch/hermes-agent",
+      "commit": "710fa8a073f9a8136e10749b083a16779341faef",
+      "role": "runtime and official integration reference",
+      "adoption": "Use reviewed immutable official image; custom non-root startup must pass live testing",
+      "reviewed_paths": [
+        "Dockerfile",
+        "cli-config.yaml.example",
+        "hermes_cli/config.py",
+        "hermes_cli/gateway.py",
+        "docker/main-wrapper.sh",
+        "docker/stage2-hook.sh",
+        "skills/autonomous-ai-agents/codex/SKILL.md",
+        ".github/workflows/docker.yml"
+      ]
+    },
+    {
+      "repository": "moonlight-lupin/agent-skills",
+      "commit": "484fe41146b668adbeb04fff37ce17a4fc73ce5b",
+      "role": "selected workflow reference",
+      "adoption": "Not installed or vendored; selected definitions and helper source inspected",
+      "reviewed_paths": [
+        "research/deep-research/SKILL.md",
+        "research/deep-research/scripts/research_validation.py",
+        "productivity/scheduled-summary/SKILL.md",
+        "productivity/scheduled-summary/scripts/summarize.py",
+        "agent-ops/log-analyzer/SKILL.md",
+        "agent-ops/log-analyzer/scripts/hermes_log_window.py"
+      ]
+    },
+    {
+      "repository": "ZeroPointRepo/awesome-hermes-skills",
+      "commit": "0e9637ef79244bf14887e44a6cc4c2d08bf32502",
+      "role": "discovery index",
+      "adoption": "No runtime dependency; linked entries require independent review",
+      "reviewed_paths": [
+        "README.md"
+      ]
+    }
+  ],
+  "not_verified": [
+    "Container runtime behavior",
+    "Third-party test suites",
+    "Selected provider/model authentication and billing",
+    "Compatibility of selected image digest, storage and cluster sandbox"
+  ]
+}

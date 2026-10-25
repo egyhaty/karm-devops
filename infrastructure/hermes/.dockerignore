@@ -1,0 +1,12 @@
+.git
+build
+runtime
+secrets
+.env*
+**/__pycache__
+**/*.pyc
+tests
+
+
+config/profile.json
+config/deployment.private.json

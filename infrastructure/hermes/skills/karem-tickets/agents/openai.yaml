@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hosting Tickets"
+  short_description: "Analyze support evidence and draft customer replies"
+  default_prompt: "Use $karem-tickets to handle this task."

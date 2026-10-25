@@ -1,0 +1,4 @@
+interface:
+  display_name: "Infrastructure Triage"
+  short_description: "Diagnose scoped infrastructure incidents safely"
+  default_prompt: "Use $karem-infra to handle this task."

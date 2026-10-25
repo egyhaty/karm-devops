@@ -1,0 +1,65 @@
+name: Hermes image
+on:
+  push:
+    branches: [codex/hermes-kubernetes]
+    paths: ['infrastructure/hermes/**', '.github/workflows/hermes-image.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hermes-image-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Offline tooling checks
+        working-directory: infrastructure/hermes
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+          python3 scripts/validate.py
+          test ! -f config/profile.json
+      - name: Load immutable versions
+        id: versions
+        run: |
+          python3 - <<'PYVERSIONS' >> "$GITHUB_OUTPUT"
+          import json
+          p=json.load(open('infrastructure/hermes/container/versions.json'))
+          print('base='+p['hermes_base_image'])
+          print('codex='+p['codex_version'])
+          PYVERSIONS
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+      - name: Build immutable image (runtime acceptance runs on Kubernetes)
+        uses: docker/build-push-action@v6
+        id: image
+        with:
+          context: infrastructure/hermes
+          file: infrastructure/hermes/container/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ secrets.USERNAME }}/hermes-karem:sha-${{ github.sha }}
+          build-args: |
+            HERMES_BASE_IMAGE=${{ steps.versions.outputs.base }}
+            CODEX_VERSION=${{ steps.versions.outputs.codex }}
+          provenance: mode=max
+          sbom: true
+      - name: Record build receipt
+        env:
+          IMAGE: ${{ secrets.USERNAME }}/hermes-karem
+          DIGEST: ${{ steps.image.outputs.digest }}
+          REVISION: ${{ github.sha }}
+        run: |
+          python3 - <<'PYRECEIPT'
+          import json,os
+          json.dump({'image':os.environ['IMAGE']+'@'+os.environ['DIGEST'],'revision':os.environ['REVISION'],'runtime_acceptance':'pending Kubernetes tests'},open('hermes-image.json','w'),indent=2)
+          PYRECEIPT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hermes-image-receipt
+          path: hermes-image.json

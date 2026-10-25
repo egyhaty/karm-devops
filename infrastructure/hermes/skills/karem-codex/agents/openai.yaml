@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Coordinator"
+  short_description: "Prepare coding briefs and review bounded changes"
+  default_prompt: "Use $karem-codex to handle this task."

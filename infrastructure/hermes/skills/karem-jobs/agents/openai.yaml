@@ -1,0 +1,4 @@
+interface:
+  display_name: "Career Assistant"
+  short_description: "Find and evaluate jobs with truthful evidence"
+  default_prompt: "Use $karem-jobs to handle this task."

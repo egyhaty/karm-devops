@@ -1,0 +1,4 @@
+interface:
+  display_name: "Personal Assistant"
+  short_description: "Plan tasks and priorities around night shifts"
+  default_prompt: "Use $karem-personal to handle this task."

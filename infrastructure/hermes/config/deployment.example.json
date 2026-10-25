@@ -1,0 +1,10 @@
+{
+  "namespace": "hermes",
+  "image": "REQUIRED_REGISTRY_IMAGE@sha256:REQUIRED_DIGEST",
+  "provider": "REQUIRED_PROVIDER",
+  "model": "REQUIRED_MODEL",
+  "timezone": "Africa/Cairo",
+  "storage_class": "",
+  "storage_size": "20Gi",
+  "secret_name": "hermes-credentials"
+}

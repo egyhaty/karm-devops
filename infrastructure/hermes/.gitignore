@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+build/
+runtime/
+__pycache__/
+*.pyc
+*.db
+*.db-*
+auth.json
+*.kubeconfig
+secrets/
+
+config/profile.json
+config/deployment.private.json
