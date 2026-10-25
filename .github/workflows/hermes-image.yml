@@ -2,7 +2,7 @@ name: Hermes image
 on:
   push:
     branches: [codex/hermes-kubernetes]
-    paths: ['infrastructure/hermes/**', '.github/workflows/hermes-image.yml']
+    paths: ['infrastructure/hermes/container/**', 'infrastructure/hermes/scripts/**', 'infrastructure/hermes/skills/**', 'infrastructure/hermes/config/**', '.github/workflows/hermes-image.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -47,6 +47,8 @@ jobs:
           build-args: |
             HERMES_BASE_IMAGE=${{ steps.versions.outputs.base }}
             CODEX_VERSION=${{ steps.versions.outputs.codex }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           provenance: mode=max
           sbom: true
       - name: Record build receipt

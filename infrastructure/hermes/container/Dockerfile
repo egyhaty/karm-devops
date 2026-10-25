@@ -5,7 +5,7 @@ ARG HERMES_BASE_IMAGE
 FROM ${HERMES_BASE_IMAGE}
 USER root
 ARG CODEX_VERSION
-RUN test -n "$CODEX_VERSION" && npm install -g "@openai/codex@${CODEX_VERSION}" && npm cache clean --force
+RUN test -n "$CODEX_VERSION" && npm install --prefix /usr/local -g "@openai/codex@${CODEX_VERSION}" && npm cache clean --force
 COPY --chown=0:0 config/SOUL.md /opt/karem/config/SOUL.md
 COPY --chown=0:0 skills /opt/karem/skills
 COPY --chown=0:0 scripts /opt/karem/scripts
