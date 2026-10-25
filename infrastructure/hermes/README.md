@@ -32,4 +32,3 @@ No network, model credentials or live cluster are needed for those checks. They 
 Copy `config/deployment.example.json` outside the repository and fill it with non-secret deployment choices. Run `python3 scripts/render.py --settings /absolute/path/settings.json --out build`. The renderer refuses unresolved values and non-digest image references. Inspect `build/manifest.json`; it is a Kubernetes List with replicas set to zero. The secret is created separately, never generated into this repository.
 
 No installer, account connection, scheduled job, cluster mutation, job application, message, git push, or paid model request has been executed by this kit.
-

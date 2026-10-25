@@ -18,4 +18,3 @@ The wrapper uses workspace-write, no approval bypass, sanitized environment and 
 On sandbox/auth/user-namespace failure stop and show the blocker. Never switch to danger-full-access, --yolo, privileged pods, extra capabilities or unconfined seccomp.
 Review tracked and untracked changes and meaningful tests independently. Out-of-scope changes are reported, not auto-deleted or rolled back. Do not commit, push, create PR, merge or deploy unless explicitly authorized.
 Output: scope, changed paths, tests actually run, failures, remaining risk and exact completion state. Never infer a deployment from a patch.
-

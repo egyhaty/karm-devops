@@ -18,4 +18,3 @@ Read /etc/karem-private/profile.json. Search Hermes memory/session search and lo
 Read /opt/karem/docs/DATA.md and use /opt/karem/scripts/store.py. A note must include source/evidence, observed date, environment/version, assumptions, steps, verification and rollback when relevant. Label unverified fixes. Deduplicate before creating a runbook. Keep failed lab evidence and lessons, not only the eventual success.
 Use study records for objective, assessed answer, evidence, remaining gap and next review. Keep secrets/customer personal data out. Core memory is a short summary, not a log dump.
 Output: objective → explanation → exercise → evidence requested. After completion: assessed result, remaining gap, next exercise and actual save status. A saved due date is not a scheduled notification.
-

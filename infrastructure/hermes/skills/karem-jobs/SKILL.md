@@ -18,4 +18,3 @@ Read /etc/karem-private/profile.json and the latest owner-approved CV. The seed 
 Draft unless explicitly authorized to submit a named application or send to a verified recipient. Tailor emphasis, not facts. Do not falsely state physical presence in Dubai. Use statuses new/shortlisted/drafting/approved/applied/interview/rejected/withdrawn/closed only on actual evidence. Draft is not applied.
 Read /opt/karem/docs/DATA.md. Save job records via /opt/karem/scripts/store.py with kind=job, key=listing URL, title, status, source and details including company, fit, evidence, gaps and retrieved_at. Write JSON using a file tool, not shell interpolation.
 Output: compact shortlist with source/date and main gap; for a selected job give evidence mapping, truthful English draft and next action. Follow-up timestamps must include timezone.
-

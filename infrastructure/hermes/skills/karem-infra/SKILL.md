@@ -19,4 +19,3 @@ Read /opt/karem/docs/CAPABILITIES.md. The initial pod has no Kubernetes API toke
 Automatic collection requires a configured read-only integration. The optional namespace Role is intended for a separate diagnostic identity; the gateway has no token mount. Never mount cluster-admin kubeconfig or Docker socket.
 This package does not implement a remote mutation executor or hard approval broker. Keep production writes in proposal mode until one is configured and tested. Prompts are not an access-control system.
 Output: impact/time, evidence sources, findings/confidence, bounded next checks, optional change/rollback, verification status. Save sanitized incident records and verified runbooks through /opt/karem/scripts/store.py.
-
