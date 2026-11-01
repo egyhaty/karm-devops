@@ -5,7 +5,7 @@ RUN npm ci --ignore-scripts
 COPY content/ ./
 RUN node build.mjs
 
-FROM golang:1.27.2-alpine AS builder
+FROM golang:1.27.3-alpine AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
