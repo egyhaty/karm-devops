@@ -7,10 +7,12 @@ executes a mutation and can be tested with a fixture JSON file.
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import subprocess
 import urllib.error
 import urllib.request
+import ssl
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,11 +27,28 @@ def kubectl(resource: str) -> dict:
     return json.loads(proc.stdout)
 
 
+def kubernetes_api(resource: str) -> dict:
+    """Read the allowlisted Kubernetes API paths using a service-account token."""
+    base = os.environ.get("RELIABILITY_K8S_API_URL")
+    token_file = os.environ.get("RELIABILITY_K8S_TOKEN_FILE", "/etc/incident-investigator-k8s-token")
+    ca_file = os.environ.get("RELIABILITY_K8S_CA_FILE", "/etc/incident-investigator-k8s-ca.crt")
+    if not base or not Path(token_file).exists() or not Path(ca_file).exists():
+        raise RuntimeError("Kubernetes API configuration is incomplete")
+    paths = {"nodes": "/api/v1/nodes", "pods": "/api/v1/pods", "events": "/api/v1/events"}
+    req = urllib.request.Request(base.rstrip("/") + paths[resource], headers={"Authorization": "Bearer " + Path(token_file).read_text().strip()})
+    context = ssl.create_default_context(cafile=ca_file)
+    with urllib.request.urlopen(req, context=context, timeout=10) as response:
+        return json.load(response)
+
+
 def load_input(path: str | None) -> dict[str, dict]:
     if path:
         payload = json.loads(Path(path).read_text())
         return {key: payload[key] for key in ("nodes", "pods", "events")}
-    return {key: kubectl(resource) for key, resource in (("nodes", "nodes"), ("pods", "pods"), ("events", "events"))}
+    try:
+        return {key: kubectl(resource) for key, resource in (("nodes", "nodes"), ("pods", "pods"), ("events", "events"))}
+    except (FileNotFoundError, subprocess.CalledProcessError, RuntimeError):
+        return {key: kubernetes_api(resource) for key, resource in (("nodes", "nodes"), ("pods", "pods"), ("events", "events"))}
 
 
 def prometheus_alerts(url: str | None) -> list[dict]:

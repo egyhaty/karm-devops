@@ -19,11 +19,10 @@ def collect():
         mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
         return mod.build_snapshot(raw)
     try:
-        cmd = ["python3", str(ROOT / "scripts/reliability_snapshot.py"), "--out", "/tmp/reliability-live-snapshot"]
-        if os.environ.get("RELIABILITY_PROMETHEUS_URL"):
-            cmd += ["--prometheus-url", os.environ["RELIABILITY_PROMETHEUS_URL"]]
-        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=20)
-        return json.loads(Path("/tmp/reliability-live-snapshot.json").read_text())
+        spec = importlib.util.spec_from_file_location("reliability_snapshot", ROOT / "scripts/reliability_snapshot.py")
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        data = mod.load_input(None)
+        return mod.build_snapshot(data, mod.prometheus_alerts(os.environ.get("RELIABILITY_PROMETHEUS_URL")))
     except Exception as exc:
         data = json.loads(FIXTURE.read_text())
         data["collector_error"] = str(exc)
