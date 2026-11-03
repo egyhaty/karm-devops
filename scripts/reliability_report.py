@@ -41,12 +41,28 @@ def classify(snapshot: dict) -> list[dict]:
     if snapshot.get("warning_events"):
         rule = RUNBOOKS["warning_event"]
         findings.append({"id": f"finding-{len(findings)+1:02d}", "type": "warning_event", "resource": {"count": len(snapshot["warning_events"])}, **rule})
+    for alert in snapshot.get("prometheus_alerts", []):
+        labels = alert.get("labels", {})
+        annotations = alert.get("annotations", {})
+        if labels.get("alertname") == "PrometheusUnavailable":
+            continue
+        findings.append({
+            "id": f"finding-{len(findings)+1:02d}",
+            "type": "prometheus_alert",
+            "resource": {"alertname": labels.get("alertname"), "instance": labels.get("instance"), "severity": labels.get("severity")},
+            "title": labels.get("alertname", "Prometheus alert"),
+            "severity": labels.get("severity", "medium"),
+            "why": annotations.get("summary") or annotations.get("description") or "Prometheus reported an active alert.",
+            "steps": ["Correlate the alert with Kubernetes events and the deployment timeline.", "Open the alert's owning runbook and capture a fresh evidence snapshot.", "Request approval before executing any remediation."],
+            "runbook": "docs/reliability-platform.md#safety-model",
+        })
     return findings
 
 
 def build_report(snapshot: dict) -> dict:
     findings = classify(snapshot)
-    severity = "critical" if any(f["severity"] == "high" for f in findings) and len(findings) >= 3 else ("high" if any(f["severity"] == "high" for f in findings) else ("medium" if findings else "healthy"))
+    severities = {f["severity"] for f in findings}
+    severity = "critical" if "critical" in severities or ("high" in severities and len(findings) >= 3) else ("high" if "high" in severities else ("medium" if findings else "healthy"))
     now = datetime.now(timezone.utc).isoformat()
     return {
         "schema_version": "reliability.incident/v1",

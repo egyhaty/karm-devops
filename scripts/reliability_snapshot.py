@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,6 +32,20 @@ def load_input(path: str | None) -> dict[str, dict]:
     return {key: kubectl(resource) for key, resource in (("nodes", "nodes"), ("pods", "pods"), ("events", "events"))}
 
 
+def prometheus_alerts(url: str | None) -> list[dict]:
+    if not url:
+        return []
+    endpoint = url.rstrip("/") + "/api/v1/alerts"
+    try:
+        with urllib.request.urlopen(endpoint, timeout=8) as response:
+            payload = json.load(response)
+        if payload.get("status") != "success":
+            raise ValueError("Prometheus returned a non-success status")
+        return payload.get("data", {}).get("alerts", [])
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+        return [{"state": "unavailable", "labels": {"alertname": "PrometheusUnavailable"}, "annotations": {"summary": str(exc)}}]
+
+
 def node_ready(node: dict) -> bool:
     return any(c.get("type") == "Ready" and c.get("status") == "True" for c in node.get("status", {}).get("conditions", []))
 
@@ -38,7 +54,7 @@ def pod_phase(pod: dict) -> str:
     return pod.get("status", {}).get("phase", "Unknown")
 
 
-def build_snapshot(data: dict[str, dict]) -> dict:
+def build_snapshot(data: dict[str, dict], alerts: list[dict] | None = None) -> dict:
     nodes = data["nodes"].get("items", [])
     pods = data["pods"].get("items", [])
     events = data["events"].get("items", [])
@@ -62,6 +78,7 @@ def build_snapshot(data: dict[str, dict]) -> dict:
         "summary": {"nodes": len(nodes), "ready_nodes": sum(node_ready(n) for n in nodes), "pods": len(pods), "warning_events": len(warning_events), "unhealthy_objects": len(unhealthy)},
         "unhealthy_objects": unhealthy,
         "warning_events": warning_events[:100],
+        "prometheus_alerts": alerts or [],
     }
 
 
@@ -80,8 +97,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", help="JSON containing nodes, pods and events list responses")
     parser.add_argument("--out", default="reliability-snapshot", help="Output path without extension")
+    parser.add_argument("--prometheus-url", help="Prometheus base URL, for example https://prometheus.murabba.net")
     args = parser.parse_args()
-    snapshot = build_snapshot(load_input(args.fixture))
+    snapshot = build_snapshot(load_input(args.fixture), prometheus_alerts(args.prometheus_url))
     Path(args.out + ".json").write_text(json.dumps(snapshot, indent=2) + "\n")
     Path(args.out + ".md").write_text(markdown(snapshot))
     print(json.dumps(snapshot["summary"], sort_keys=True))
