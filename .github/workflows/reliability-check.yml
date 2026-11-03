@@ -1,0 +1,32 @@
+name: Reliability checks
+
+on:
+  push:
+    paths:
+      - "scripts/reliability_*.py"
+      - "docs/fixtures/reliability-snapshot.json"
+      - ".github/workflows/reliability-check.yml"
+  pull_request:
+    paths:
+      - "scripts/reliability_*.py"
+      - "docs/fixtures/reliability-snapshot.json"
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile collectors
+        run: python -m py_compile scripts/reliability_snapshot.py scripts/reliability_report.py
+      - name: Generate bounded incident report
+        run: |
+          python scripts/reliability_snapshot.py --fixture docs/fixtures/reliability-snapshot.json --out reliability-snapshot
+          python scripts/reliability_report.py reliability-snapshot.json --out reliability-incident
+          grep -q 'mutations_executed: `0`' reliability-incident.md
+          test -s reliability-incident.json
