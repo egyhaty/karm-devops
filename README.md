@@ -77,3 +77,7 @@ Murabba Learn is a public hands-on Cloud & DevOps learning library, with seven-m
 MIT License. Maintained by [@egyhaty](https://github.com/egyhaty).
 
 For day-to-day application control, see [إدارة الشروحات والعقارات](docs/app-management.md).
+## Reliability platform direction
+
+The next product layer is documented in [docs/reliability-platform.md](docs/reliability-platform.md). It combines deterministic health checks, alert ingestion, backup verification, incident timelines, Slack approval gates, and Hermes operator workflows. The LLM is optional; the platform remains useful and safe without it.
+
