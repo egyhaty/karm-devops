@@ -1,0 +1,5 @@
+{
+  "nodes": {"items": [{"metadata": {"name": "control-a"}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}}, {"metadata": {"name": "worker-a"}, "status": {"conditions": [{"type": "Ready", "status": "False"}]}}]},
+  "pods": {"items": [{"metadata": {"namespace": "platform", "name": "api-0"}, "status": {"phase": "Running"}}, {"metadata": {"namespace": "shop", "name": "checkout-0"}, "status": {"phase": "Failed"}}]},
+  "events": {"items": [{"metadata": {"namespace": "shop", "name": "checkout-warning"}, "type": "Warning", "reason": "BackOff", "message": "Back-off restarting failed container"}]}
+}
