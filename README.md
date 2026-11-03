@@ -81,3 +81,20 @@ For day-to-day application control, see [إدارة الشروحات والعق�
 
 The next product layer is documented in [docs/reliability-platform.md](docs/reliability-platform.md). It combines deterministic health checks, alert ingestion, backup verification, incident timelines, Slack approval gates, and Hermes operator workflows. The LLM is optional; the platform remains useful and safe without it.
 
+### Product walkthrough
+
+Open the [Reliability Control Room demo](docs/reliability-control-room.html) to see the intended operator experience. The screen answers five questions in order: what is broken, what evidence supports it, how severe it is, what the runbook recommends, and whether any change has actually been executed.
+
+```mermaid
+sequenceDiagram
+  participant K as Kubernetes
+  participant P as Prometheus
+  participant R as Reliability collector
+  participant H as Hermes / Slack
+  K->>R: nodes, pods, events (read-only)
+  P->>R: active alerts (API read-only)
+  R->>R: correlate + classify + attach runbooks
+  R-->>H: incident timeline + approval request
+  H-->>R: explicit approval (future action boundary)
+```
+
