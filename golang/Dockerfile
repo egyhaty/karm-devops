@@ -1,4 +1,4 @@
-FROM node:24-alpine AS content
+FROM node:26-alpine AS content
 WORKDIR /content
 COPY content/package*.json ./
 RUN npm ci --ignore-scripts
